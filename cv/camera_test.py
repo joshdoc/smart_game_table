@@ -24,7 +24,7 @@ def detect_centroids(frame, lower_thresh, upper_thresh):
     # Loop over the contours and calculate the centroids
     for contour in contours:
         # Only consider contours with area greater than a threshold
-        if cv2.contourArea(contour) > 100:
+        if cv2.contourArea(contour) > 10:
             M = cv2.moments(contour)
             if M["m00"] != 0:  # To avoid division by zero
                 cx = int(M["m10"] / M["m00"])
