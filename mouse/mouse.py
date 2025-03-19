@@ -3,12 +3,15 @@ import numpy as np
 
 # https://pyautogui.readthedocs.io/en/latest/
 import pyautogui as pg
+
 pg.FAILSAFE = False
 scw, sch = pg.size()
+X_OFFSET = 5
+Y_OFFSET = 10
 
 
 def on_centroid_detect(xpos: int, ypos: int) -> None:
-    pg.moveTo(xpos, ypos)
+    pg.moveTo(xpos + X_OFFSET, ypos + Y_OFFSET)
     print(f"Mouse moved to {xpos}, {ypos}")
 
 
@@ -90,4 +93,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
