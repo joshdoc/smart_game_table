@@ -3,12 +3,13 @@ import numpy as np
 
 # https://pyautogui.readthedocs.io/en/latest/
 import pyautogui as pg
-
+pg.FAILSAFE = False
 scw, sch = pg.size()
 
 
 def on_centroid_detect(xpos: int, ypos: int) -> None:
-    pg.move(xpos, ypos)
+    pg.moveTo(xpos, ypos)
+    print(f"Mouse moved to {xpos}, {ypos}")
 
 
 def detect_centroids(frame, lower_thresh, upper_thresh):
@@ -44,7 +45,8 @@ def detect_centroids(frame, lower_thresh, upper_thresh):
                 # Draw the contour and the centroid on the image
                 cv2.drawContours(frame, [contour], -1, (0, 255, 0), 2)
                 cv2.circle(frame, (cx, cy), 5, (0, 0, 255), -1)
-
+    if len(centroids) > 0:
+        on_centroid_detect(centroids[0][0], centroids[0][1])
     return centroids
 
 
