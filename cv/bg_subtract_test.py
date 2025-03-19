@@ -32,6 +32,9 @@ def main():
     # Capture the background scene for subtraction
     background = capture_background(cap)
 
+    # Configuration option for tuning the spacing threshold between centroids (in pixels)
+    DOT_SPACING_THRESHOLD = 75  # Adjust this value as needed
+
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -54,21 +57,64 @@ def main():
         # Find contours in the thresholded image
         contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
+        # Prepare to store centroids for game pieces
+        game_piece_centroids = []
+
         # Loop over the contours to detect and draw centroids
         for cnt in contours:
+            area = cv2.contourArea(cnt)
             # Filter out very small contours (adjust the threshold as needed)
-            if cv2.contourArea(cnt) < 15:
+            if area < 15:
                 continue
-            
-            # Calculate moments for each contour
-            M = cv2.moments(cnt)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                # Draw the centroid on the frame
-                cv2.circle(frame, (cX, cY), 5, (0, 0, 255), -1)
-                cv2.putText(frame, "centroid", (cX - 25, cY - 25),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+            # Detected contour is a fingerprint
+            if area > 45:
+                # Calculate moments for each contour
+                M = cv2.moments(cnt)
+                if M["m00"] != 0:
+                    cX = int(M["m10"] / M["m00"])
+                    cY = int(M["m01"] / M["m00"])
+                    cv2.putText(frame, "touch", (cX - 25, cY - 25),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+            # Detected contour is part of a game piece
+            else:
+                M = cv2.moments(cnt)
+                if M["m00"] != 0:
+                    cX = int(M["m10"] / M["m00"])
+                    cY = int(M["m01"] / M["m00"])
+                    game_piece_centroids.append((cX, cY))
+
+        # Cluster the game piece centroids based on their proximity
+        clusters = []
+        for pt in game_piece_centroids:
+            added = False
+            for cluster in clusters:
+                # If any point in the cluster is within the threshold distance, add this point to that cluster
+                if any(np.linalg.norm(np.array(pt) - np.array(existing_pt)) < DOT_SPACING_THRESHOLD for existing_pt in cluster):
+                    cluster.append(pt)
+                    added = True
+                    break
+            if not added:
+                clusters.append([pt])
+
+        # For each cluster, decide if it is a "pawn" (one dot) or a "rook" (four dots)
+        for cluster in clusters:
+            # Calculate the average position of the centroids in the cluster
+            avg_x = int(sum(p[0] for p in cluster) / len(cluster))
+            avg_y = int(sum(p[1] for p in cluster) / len(cluster))
+            if len(cluster) == 1:
+                cv2.putText(frame, "pawn", (avg_x - 25, avg_y - 25),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            elif len(cluster) == 2:
+                cv2.putText(frame, "knight", (avg_x - 25, avg_y - 25),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)    
+            elif len(cluster) == 3:
+                cv2.putText(frame, "bishop", (avg_x - 25, avg_y - 25),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            elif len(cluster) == 4:
+                cv2.putText(frame, "rook", (avg_x - 25, avg_y - 25),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
 
         # Display the original frame with detected centroids and the threshold image
         cv2.imshow("Detected Centroids", frame)
