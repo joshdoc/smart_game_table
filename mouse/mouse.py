@@ -1,19 +1,15 @@
 import cv2
 import numpy as np
-
-# https://pyautogui.readthedocs.io/en/latest/
 import pyautogui as pg
 
 pg.FAILSAFE = False
 scw, sch = pg.size()
-X_OFFSET = 5
-Y_OFFSET = 10
-
+X_SCALE = 3
+Y_SCALE = 2.25
 
 def on_centroid_detect(xpos: int, ypos: int) -> None:
-    pg.moveTo(xpos + X_OFFSET, ypos + Y_OFFSET)
+    pg.moveTo(xpos * X_SCALE, ypos * Y_SCALE)
     print(f"Mouse moved to {xpos}, {ypos}")
-
 
 def detect_centroids(frame, lower_thresh, upper_thresh):
     """
@@ -52,7 +48,6 @@ def detect_centroids(frame, lower_thresh, upper_thresh):
         on_centroid_detect(centroids[0][0], centroids[0][1])
     return centroids
 
-
 def main():
     # Open the webcam
     cap = cv2.VideoCapture(0)  # 0 for the default webcam
@@ -64,6 +59,11 @@ def main():
     # Parameters for thresholding, can be adjusted for tuning
     lower_thresh = 125  # Lower threshold for grayscale value
     upper_thresh = 255  # Upper threshold for grayscale value
+
+    # Create a named window and set it to full screen
+    window_name = "Centroid Detection"
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     while True:
         # Capture frame-by-frame
@@ -77,19 +77,18 @@ def main():
         centroids = detect_centroids(frame, lower_thresh, upper_thresh)
 
         # Display the frame with contours and centroids
-        cv2.imshow("Centroid Detection", frame)
+        cv2.imshow(window_name, frame)
 
         # Print detected centroids
         print(f"Detected Centroids: {centroids}")
 
-        # Exit the loop when the 'q' key is pressed
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+        # Exit the loop when the 'esc' key is pressed (ASCII 27)
+        if cv2.waitKey(1) & 0xFF == 27:
             break
 
     # Release the webcam and close all OpenCV windows
     cap.release()
     cv2.destroyAllWindows()
-
 
 if __name__ == "__main__":
     main()
