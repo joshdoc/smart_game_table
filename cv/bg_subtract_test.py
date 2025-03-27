@@ -44,7 +44,7 @@ def main():
         diff = cv2.absdiff(background, gray_frame)
         
         # Apply a threshold to get a binary image
-        _, thresh = cv2.threshold(diff, 40, 255, cv2.THRESH_BINARY)
+        _, thresh = cv2.threshold(diff, 50, 255, cv2.THRESH_BINARY)
         
         # Optionally, use morphological operations to remove small noise
         kernel = np.ones((3, 3), np.uint8)
@@ -57,7 +57,7 @@ def main():
         # Loop over the contours to detect and draw centroids
         for cnt in contours:
             # Filter out very small contours (adjust the threshold as needed)
-            if cv2.contourArea(cnt) < 50:
+            if cv2.contourArea(cnt) < 35:
                 continue
             
             # Calculate moments for each contour
