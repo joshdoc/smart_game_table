@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-def capture_background(cap):
+def capture_background(cap,x,y,w,h):
     """
     Capture an initial background image.
     Press 'b' to capture and lock the background.
@@ -9,9 +9,13 @@ def capture_background(cap):
     print("Press 'b' to capture the background frame.")
     while True:
         ret, frame = cap.read()
+        frame = frame[y:y+h,x:x+w]
+        ret = True
         if not ret:
             print("Failed to capture frame from camera. Exiting...")
             exit()
+
+            
         cv2.imshow("Live Feed - Press 'b' to capture background", frame)
         key = cv2.waitKey(1) & 0xFF
         if key == ord('b'):
@@ -28,12 +32,37 @@ def main():
     if not cap.isOpened():
         print("Error: Could not open the camera.")
         return
+    
+    ### Autocrop
+    ret, frame = cap.read()
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) 
+    _,thresh = cv2.threshold(gray,40,255,cv2.THRESH_BINARY)
+    cv2.imshow('frame',thresh)
+    contours,hierarchy = cv2.findContours(thresh,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    #cnt = contours[0]
+    cnt = max(contours, key = cv2.contourArea) #Select largest contour (table)
+    x,y,w,h = cv2.boundingRect(cnt)
+
+
+    scale = 1-.051
+    x =int(x*scale)
+    y= int(y*scale)
+    w= int(w*scale)
+    h= int(h*scale)
+
+    crop = frame[y:y+h,x:x+w]
+    cv2.imshow('crop',crop)
+
+    cv2.waitKey(1)
+    
+
 
     # Capture the background scene for subtraction
-    background = capture_background(cap)
+    background = capture_background(cap,x,y,w,h)
 
     while True:
         ret, frame = cap.read()
+        frame = frame[y:y+h,x:x+w]
         if not ret:
             break
 
@@ -67,12 +96,17 @@ def main():
                 cY = int(M["m01"] / M["m00"])
                 # Draw the centroid on the frame
                 cv2.circle(frame, (cX, cY), 5, (0, 0, 255), -1)
-                cv2.putText(frame, "centroid", (cX - 25, cY - 25),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                '''cv2.putText(frame, "centroid", (cX - 25, cY - 25),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)'''
 
         # Display the original frame with detected centroids and the threshold image
-        cv2.imshow("Detected Centroids", frame)
+        cv2.namedWindow("Detected Centroids", cv2.WND_PROP_FULLSCREEN)
+
+        cv2.setWindowProperty("Detected Centroids",  cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("Detected Centroids", cv2.flip(frame, 1))
         cv2.imshow("Foreground (Background Subtraction)", thresh)
+        
+
 
         # Exit the loop when 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
