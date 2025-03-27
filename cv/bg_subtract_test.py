@@ -60,6 +60,9 @@ def main():
     # Capture the background scene for subtraction
     background = capture_background(cap,x,y,w,h)
 
+    # Configuration option for tuning the spacing threshold between centroids (in pixels)
+    DOT_SPACING_THRESHOLD = 75  # Adjust this value as needed
+
     while True:
         ret, frame = cap.read()
         frame = frame[y:y+h,x:x+w]
@@ -73,6 +76,7 @@ def main():
         diff = cv2.absdiff(background, gray_frame)
         
         # Apply a threshold to get a binary image
+
         _, thresh = cv2.threshold(diff, 50, 255, cv2.THRESH_BINARY)
         
         # Optionally, use morphological operations to remove small noise
@@ -83,9 +87,14 @@ def main():
         # Find contours in the thresholded image
         contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
+        # Prepare to store centroids for game pieces
+        game_piece_centroids = []
+
         # Loop over the contours to detect and draw centroids
         for cnt in contours:
+            area = cv2.contourArea(cnt)
             # Filter out very small contours (adjust the threshold as needed)
+
             if cv2.contourArea(cnt) < 35:
                 continue
             
