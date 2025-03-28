@@ -34,6 +34,20 @@ standalone: bool = False
 capture: cv2.VideoCapture = cv2.VideoCapture()
 bg: np.ndarray = np.zeros(0)
 
+def warpImage(image, corners, target, width, height):
+    corners_np = np.array(corners, dtype=np.float32)
+    target_np = np.array(target, dtype=np.float32)
+    
+    mat = cv2.getPerspectiveTransform(corners_np, target_np)
+    out = cv2.warpPerspective(image, mat, (width, height), flags=cv2.INTER_CUBIC)
+    while True:
+        cv2.namedWindow("out", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty(
+            "out", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN
+        )
+        cv2.imshow("out",out)
+        cv2.waitKey(1)
+    return out
 
 def _capture_bg(capture: cv2.VideoCapture) -> np.ndarray:
     global bg
@@ -75,10 +89,36 @@ def _crop_bg(frame: np.ndarray) -> None:
         y, h = (int(val * CROP_SCALE) for val in [y, h])
         print("POST", x,y,w,h)
         
-        x += X_OFFSET
-        w -= 2*X_OFFSET
-        y += Y_OFFSET
-        h -= 2*Y_OFFSET
+        #x += X_OFFSET
+        #w -= 2*X_OFFSET
+        #y += Y_OFFSET
+        #h -= 2*Y_OFFSET
+
+        
+
+        peri = cv2.arcLength(table_outline, True)
+        corners = cv2.approxPolyDP(table_outline, 0.04 * peri, True)
+
+        print(type(corners), corners[0])
+        cv2.polylines(frame, [corners], True, (0,0,255), 1, cv2.LINE_AA)
+
+
+        corners2 = [corners[0][0][0], corners[0][0][1],
+                    corners[1][0][0], corners[1][0][1],
+                    corners[2][0][0], corners[2][0][1],
+                    corners[3][0][0], corners[3][0][1],]
+        
+        width = 1400
+        height = 1050
+
+        target = [(0,0),(width,0),(width,height),(0,height)]
+        out = warpImage(frame, corners, target, width,height)
+        
+        print(corners2)
+
+
+
+        
 
         CROP = (slice(y, y + h), slice(x, x + w))
 
