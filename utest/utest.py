@@ -5,29 +5,25 @@ import time
 import cv2
 import pygame
 
-from cv import cv_init, cv_loop
+from warp import cv_init, cv_loop
 
 # Initialize Pygame
 pygame.init()
 
 # Game settings
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 1400, 1050
 TARGET_RADIUS = 30
 TARGET_SPAWN_RATE = 0.3  # New targets spawn every 1 second
 TARGET_SPACING = 60
-MAX_TARGETS = 7
+MAX_TARGETS = 10
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
-MOUSE_MODE = True
+MOUSE_MODE = False
 TIME_TO_TAP = False
 
 # Screen setup
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Tap the Target Game")
 
-# Font for displaying text
-font = pygame.font.SysFont("Arial", 24)
 
 # Game variables
 targets = []  # List of targets
@@ -58,6 +54,12 @@ def avg_accuracy():
 # Main game loop
 if not MOUSE_MODE:
     cv_init()
+
+screen = pygame.display.set_mode((1400, 1050))
+pygame.display.set_caption("Tap the Target Game")
+
+# Font for displaying text
+font = pygame.font.SysFont("Arial", 24)
 
 last_spawn_time = time.time()
 previous_tap_time = time.time()
@@ -94,11 +96,17 @@ while running:
                     score += 1
                     targets.remove(target)  # Remove the target after successful hit
 
+    # ERRS
+    # PG: 132 311
+    # CV: 171 398
+
     if not MOUSE_MODE:
         # Centroid stuff
         centroids = cv_loop()
+        print(centroids)
         for target in targets[:]:
             target_x, target_y, creation_time = target
+            print(target_x, target_y)
 
             for centroid in centroids:
                 distance_from_center = distance(
@@ -115,7 +123,8 @@ while running:
                     tap_times.append(tap_time)
                     accuracies.append(distance_from_center)
                     score += 1
-                    targets.remove(target)  # Remove the target after successful hit
+                    if target in targets:
+                        targets.remove(target)  # Remove the target after successful hit
 
     # Spawn new targets at the defined spawn rate
     if time.time() - last_spawn_time >= TARGET_SPAWN_RATE:

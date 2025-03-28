@@ -3,6 +3,9 @@ from typing import Any
 import cv2
 import numpy as np
 
+#import timeit
+
+
 # Run `ls /dev | grep video` to see which idx to use for the camera
 CAM_IDX: int = 0
 
@@ -19,34 +22,39 @@ Y_OFFSET: int = 15
 CONTOUR_MIN_AREA: int = 35
 CONTOUR_MAX_AREA: int = 1000
 
-CFG_SHOW_INITIAL_CROP: bool = True
+CFG_SHOW_INITIAL_CROP: bool = False
 CFG_SHOW_BG_SUBTRACT: bool = False
 
 # Currently required to be True due to
 # using CV for key input to capture bg.
-CFG_SHOW_INITIAL_BG: bool = True
+CFG_SHOW_INITIAL_BG: bool = False
 
 # Only affects the non-standalone case.
 # if standalone, this is always displayed.
 CFG_SHOW_FRAME: bool = False
 
+WIDTH = 1400
+HEIGHT = 1050
+TARGET = [(0,0),(WIDTH,0),(WIDTH,HEIGHT),(0,HEIGHT)]
+
+corners: np.ndarray = np.zeros(0)
 standalone: bool = False
 capture: cv2.VideoCapture = cv2.VideoCapture()
 bg: np.ndarray = np.zeros(0)
 
-def warpImage(image, corners, target, width, height):
+def warpImage(image: np.ndarray) -> np.ndarray:
     corners_np = np.array(corners, dtype=np.float32)
-    target_np = np.array(target, dtype=np.float32)
+    target_np = np.array(TARGET, dtype=np.float32)
     
     mat = cv2.getPerspectiveTransform(corners_np, target_np)
-    out = cv2.warpPerspective(image, mat, (width, height), flags=cv2.INTER_CUBIC)
-    while True:
-        cv2.namedWindow("out", cv2.WND_PROP_FULLSCREEN)
-        cv2.setWindowProperty(
-            "out", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN
-        )
-        cv2.imshow("out",out)
-        cv2.waitKey(1)
+    out = cv2.warpPerspective(image, mat, (WIDTH, HEIGHT), flags=cv2.INTER_CUBIC)
+    # while True:
+    #     cv2.namedWindow("out", cv2.WND_PROP_FULLSCREEN)
+    #     cv2.setWindowProperty(
+    #         "out", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN
+    #     )
+    #     cv2.imshow("out",out)
+    #     cv2.waitKey(1)
     return out
 
 def _capture_bg(capture: cv2.VideoCapture) -> np.ndarray:
@@ -56,7 +64,7 @@ def _capture_bg(capture: cv2.VideoCapture) -> np.ndarray:
     capturing: bool = True
     while capturing:
         ret, frame = capture.read()
-        frame = frame[CROP]
+        frame = warpImage(frame)
         if not ret:
             print("Failed to capture frame from camera. Exiting...")
             exit()
@@ -73,7 +81,7 @@ def _capture_bg(capture: cv2.VideoCapture) -> np.ndarray:
 
 
 def _crop_bg(frame: np.ndarray) -> None:
-    global CROP
+    global corners
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, CROP_MIN_THRESH, 255, cv2.THRESH_BINARY)
@@ -82,50 +90,17 @@ def _crop_bg(frame: np.ndarray) -> None:
 
     # largest contour is the table
     if len(contours):
-        table_outline = max(contours, key=cv2.contourArea)
-
-        x, y, w, h = cv2.boundingRect(table_outline)
-        print("PRE",x,y,w,h)
-        y, h = (int(val * CROP_SCALE) for val in [y, h])
-        print("POST", x,y,w,h)
-        
-        #x += X_OFFSET
-        #w -= 2*X_OFFSET
-        #y += Y_OFFSET
-        #h -= 2*Y_OFFSET
-
-        
+        table_outline = max(contours, key=cv2.contourArea)    
 
         peri = cv2.arcLength(table_outline, True)
         corners = cv2.approxPolyDP(table_outline, 0.04 * peri, True)
 
-        print(type(corners), corners[0])
         cv2.polylines(frame, [corners], True, (0,0,255), 1, cv2.LINE_AA)
-
-
-        corners2 = [corners[0][0][0], corners[0][0][1],
-                    corners[1][0][0], corners[1][0][1],
-                    corners[2][0][0], corners[2][0][1],
-                    corners[3][0][0], corners[3][0][1],]
         
-        width = 1400
-        height = 1050
-
-        target = [(0,0),(width,0),(width,height),(0,height)]
-        out = warpImage(frame, corners, target, width,height)
-        
-        print(corners2)
-
-
-
-        
-
-        CROP = (slice(y, y + h), slice(x, x + w))
+        out = warpImage(frame)   
 
     if CFG_SHOW_INITIAL_CROP:
-        crop = frame[CROP]
         cv2.imshow("frame", frame)
-        # cv2.imshow("crop", crop)
         cv2.waitKey(2000)
 
 
@@ -157,7 +132,10 @@ def cv_loop() -> list[Any]:
         print("Failed to capture frame from camera. Exiting...")
         exit()
 
-    frame = frame[CROP]
+    #start = timeit.default_timer()
+    frame = warpImage(frame)
+    #stop = timeit.default_timer()
+    #print('Time: ', stop - start) 
 
     # Convert current frame to grayscale
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -166,7 +144,7 @@ def cv_loop() -> list[Any]:
     diff = cv2.absdiff(bg, gray_frame)
 
     # Apply a threshold to get a binary image
-    _, thresh = cv2.threshold(diff, 50, 255, cv2.THRESH_BINARY)
+    _, thresh = cv2.threshold(diff, 35, 255, cv2.THRESH_BINARY)
 
     # Use morphological operations to remove small noise
     kernel = np.ones((3, 3), np.uint8)
@@ -202,7 +180,7 @@ def cv_loop() -> list[Any]:
             "Detected Centroids", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN
         )
 
-        cv2.imshow("Detected Centroids", cv2.flip(frame, 1))
+        cv2.imshow("Detected Centroids", frame)#, cv2.flip(frame, 1))
 
     if CFG_SHOW_BG_SUBTRACT:
         cv2.imshow("Foreground (Background Subtraction)", thresh)
