@@ -26,14 +26,13 @@ parser = argparse.ArgumentParser(description="Tap the Target Game")
 parser.add_argument("duration", type=int, help="Duration of the game in seconds")
 parser.add_argument("username", type=str, help="Username of the player")
 parser.add_argument("radius", type=int, help="radius of the targets")
-parser.add_argument("mouse", type=bool, help="mouse mode if true")
+parser.add_argument("mouse", type=int, help="mouse mode if true")
 
 args = parser.parse_args()
 GAME_DURATION = args.duration  # Duration from command line argument
 USERNAME = args.username  # Username from command line argument
 TARGET_RADIUS = args.radius
-MOUSE_MODE = args.mouse
-
+MOUSE_MODE = args.mouse > 0
 
 # Screen setup
 
