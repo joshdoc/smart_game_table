@@ -72,7 +72,7 @@ def avg_accuracy():
     return 0
 
 
-# Duration | User Name | Circle_Size | Num_Circles | Num_Misclisks | Avg_TBC | Med_TBC
+# Duration | User Name | Circle_Size | Mouse_Mode | Num_Circles | Num_Misclisks | Avg_TBC | Med_TBC
 def writeResults() -> None:
     with open("results.csv", mode="a", newline="") as file:
         out = csv.writer(file)
@@ -81,6 +81,7 @@ def writeResults() -> None:
                 GAME_DURATION,
                 USERNAME,
                 TARGET_RADIUS,
+                MOUSE_MODE,
                 misses,
                 avg_tap_time(),
                 med_tap_time(),
