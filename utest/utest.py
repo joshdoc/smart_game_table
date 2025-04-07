@@ -20,18 +20,19 @@ MAX_TARGETS = 10
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
-MOUSE_MODE = True
 TIME_TO_TAP = False
 
 parser = argparse.ArgumentParser(description="Tap the Target Game")
 parser.add_argument("duration", type=int, help="Duration of the game in seconds")
 parser.add_argument("username", type=str, help="Username of the player")
-parser.add_argument("radius", type=str, help="radius of the targets")
+parser.add_argument("radius", type=int, help="radius of the targets")
+parser.add_argument("mouse", type=bool, help="mouse mode if true")
 
 args = parser.parse_args()
 GAME_DURATION = args.duration  # Duration from command line argument
 USERNAME = args.username  # Username from command line argument
 TARGET_RADIUS = args.radius
+MOUSE_MODE = args.mouse
 
 
 # Screen setup
@@ -223,6 +224,8 @@ def game():
         pygame.display.update()
 
     if completed:
+        if not MOUSE_MODE:
+            misses = input("num misses: ")
         writeResults()
 
     # Clean up and quit the game
