@@ -3,6 +3,8 @@ from typing import Any
 import cv2
 import numpy as np
 
+#import timeit
+
 # Run `ls /dev | grep video` to see which idx to use for the camera
 CAM_IDX: int = 0
 
@@ -37,6 +39,11 @@ corners: np.ndarray = np.zeros(0)
 standalone: bool = False
 capture: cv2.VideoCapture = cv2.VideoCapture()
 bg: np.ndarray = np.zeros(0)
+transformed: bool = False
+mat: cv2.typing.MatLike
+
+#acctime: float=0
+#frames:int=0
 
 # -------------------------------------------------------------------------
 # New configuration options for distance-based thresholding:
@@ -45,10 +52,12 @@ CFG_THRESHOLD_DISTANCE_SCALE: float = 25.0 # How much the threshold increases at
 # -------------------------------------------------------------------------
 
 def warpImage(image: np.ndarray) -> np.ndarray:
+    global transformed, mat
     corners_np = np.array(corners, dtype=np.float32)
     target_np = np.array(TARGET, dtype=np.float32)
-    
-    mat = cv2.getPerspectiveTransform(corners_np, target_np)
+    if(not transformed):
+        mat = cv2.getPerspectiveTransform(corners_np, target_np)
+        transformed = True
     out = cv2.warpPerspective(image, mat, (WIDTH, HEIGHT), flags=cv2.INTER_CUBIC)
     return out
 
@@ -75,7 +84,7 @@ def _capture_bg(capture: cv2.VideoCapture) -> np.ndarray:
     return bg
 
 def _crop_bg(frame: np.ndarray) -> None:
-    global corners
+    global corners, mat
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, CROP_MIN_THRESH, 255, cv2.THRESH_BINARY)
@@ -125,13 +134,19 @@ def cv_init() -> None:
     _capture_bg(capture)
 
 def cv_loop() -> list[Any]:
+    global acctime, frames
     ret, frame = capture.read()
 
     if not ret:
         print("Failed to capture frame from camera. Exiting...")
         exit()
 
+    #start = timeit.default_timer()
     frame = warpImage(frame)
+    #stop = timeit.default_timer()
+    #print('Time: ', stop - start)
+    #acctime+=stop-start
+    #frames+=1
 
     # Convert current frame to grayscale
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -194,6 +209,7 @@ def cv_loop() -> list[Any]:
     if standalone and cv2.waitKey(1) == ord("q"):
         capture.release()
         cv2.destroyAllWindows()
+        #print("avg runtime: ",  acctime/frames)
         exit()
 
     return centroids
