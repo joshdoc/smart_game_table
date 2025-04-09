@@ -47,8 +47,9 @@ mat: cv2.typing.MatLike
 
 # -------------------------------------------------------------------------
 # New configuration options for distance-based thresholding:
-CFG_CENTER_THRESHOLD: int = 25           # Base threshold at the center of the image
-CFG_THRESHOLD_DISTANCE_SCALE: float = 25.0 # How much the threshold increases at the maximum distance
+adj = 15
+CFG_CENTER_THRESHOLD: int = 25+adj              # Base threshold at the center of the image
+CFG_THRESHOLD_DISTANCE_SCALE: float = 25.0-10  # How much the threshold increases at the maximum distance
 # -------------------------------------------------------------------------
 
 def warpImage(image: np.ndarray) -> np.ndarray:

@@ -36,24 +36,33 @@ corners: np.ndarray = np.zeros(0)
 standalone: bool = False
 capture: cv2.VideoCapture = cv2.VideoCapture()
 bg: np.ndarray = np.zeros(0)
+transformed: bool = False
+mat: cv2.typing.MatLike
+current_margin:int=0
+
+def update_contours(margin):
+    global current_margin
+    current_margin = margin
 
 # -------------------------------------------------------------------------
 # New configuration options for adaptive thresholding based on edge distance:
-CFG_CENTER_THRESHOLD: int = 20           # Base threshold (applied at the center, farthest from any edge)
-CFG_THRESHOLD_DISTANCE_SCALE: float = 30.0 # Additional threshold applied at the edges
+CFG_CENTER_THRESHOLD: int = 20+8           # Base threshold (applied at the center, farthest from any edge)
+CFG_THRESHOLD_DISTANCE_SCALE: float = 30.0-8 # Additional threshold applied at the edges
 # New configuration options for drag thresholding
 CFG_DRAG_RADIUS: int = 50      # Radius (in pixels) around a detected centroid to lighten the threshold
-CFG_LIGHTEN_AMOUNT: int = 10   # Amount by which to lower the threshold in the drag area
+CFG_LIGHTEN_AMOUNT: int = 20   # Amount by which to lower the threshold in the drag area
 # -------------------------------------------------------------------------
 
 # Global variable to track the active centroid position (if any)
 active_centroid: list[int] | None = None
 
 def warpImage(image: np.ndarray) -> np.ndarray:
+    global transformed, mat
     corners_np = np.array(corners, dtype=np.float32)
     target_np = np.array(TARGET, dtype=np.float32)
-    
-    mat = cv2.getPerspectiveTransform(corners_np, target_np)
+    if (not transformed):
+        mat = cv2.getPerspectiveTransform(corners_np, target_np)
+        transformed=True
     out = cv2.warpPerspective(image, mat, (WIDTH, HEIGHT), flags=cv2.INTER_CUBIC)
     return out
 
@@ -129,21 +138,26 @@ def cv_init() -> None:
     _capture_bg(capture)
 
 def cv_loop() -> list[Any]:
-    global active_centroid
+    global active_centroid, current_margin
 
     ret, frame = capture.read()
 
     if not ret:
         print("Failed to capture frame from camera. Exiting...")
         exit()
-
     frame = warpImage(frame)
 
     # Convert current frame to grayscale
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
     # Compute absolute difference between the background and current frame
     diff = cv2.absdiff(bg, gray_frame)
+
+    #Mask margin
+    height, width = frame.shape[:2]
+    mask = np.zeros((height, width), dtype=np.uint8)
+    cv2.rectangle(mask, (current_margin, current_margin), (width-current_margin, height-current_margin), 255, -1)
+    diff = cv2.bitwise_and(diff, mask)
+    #cv2.imshow("mask", masked_image)
 
     # --- Adaptive Thresholding Based on Distance from Edges ---
     # Here we compute the minimum distance of each pixel to any of the four edges
@@ -208,6 +222,7 @@ def cv_loop() -> list[Any]:
     # Display original frame with detected centroids and the threshold image
     if standalone or CFG_SHOW_FRAME:
         cv2.namedWindow("Detected Centroids", cv2.WND_PROP_FULLSCREEN)
+        
         cv2.setWindowProperty("Detected Centroids", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow("Detected Centroids", frame)
 
@@ -227,6 +242,15 @@ def main() -> None:
     standalone = True
 
     cv_init()
+    
+    ##Control Panel Window!
+    cv2.namedWindow("Controls", cv2.WND_PROP_FULLSCREEN)
+    ret, frame = capture.read()
+    height, width = frame.shape[:2] #may to readjust this?
+    cv2.createTrackbar('Margin', "Controls", 10, min(height, width) // 2, update_contours)
+    cntrl = cv2.imread("Feature Testing/control.png")
+    cv2.imshow("Controls", cntrl)
+
 
     while True:
         cv_loop()
