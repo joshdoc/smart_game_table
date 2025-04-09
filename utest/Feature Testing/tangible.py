@@ -137,7 +137,20 @@ def cv_init() -> None:
     # Capture the background scene for subtraction
     _capture_bg(capture)
 
+# Helper to ensure block size is odd and >= 3
+def make_odd(val):
+    return val if val % 2 == 1 else val + 1
+# Trackbar callback (does nothing; we use getTrackbarPos)
+def nothing(x):
+    pass
+
 def cv_loop() -> list[Any]:
+    block_size = cv2.getTrackbarPos("Block Size", "Controls")
+    C = cv2.getTrackbarPos("C", "Controls")
+    lowerthresh= cv2.getTrackbarPos("Lower Thresh", "Controls")
+
+    block_size = make_odd(max(3, block_size))  # Ensure block size is odd and >=3
+
     global active_centroid, current_margin
 
     ret, frame = capture.read()
@@ -158,75 +171,44 @@ def cv_loop() -> list[Any]:
     cv2.rectangle(mask, (current_margin, current_margin), (width-current_margin, height-current_margin), 255, -1)
     diff = cv2.bitwise_and(diff, mask)
 
-    # --- Adaptive Thresholding Based on Distance from Edges ---
-    # Here we compute the minimum distance of each pixel to any of the four edges
-    h, w = diff.shape
-    y_indices, x_indices = np.indices((h, w))
-    dist_left = x_indices
-    dist_right = w - x_indices
-    dist_top = y_indices
-    dist_bottom = h - y_indices
-    # The minimum distance to any edge:
-    edge_distances = np.minimum(np.minimum(dist_left, dist_right), np.minimum(dist_top, dist_bottom))
-
-    # Maximum edge distance is at the center (the farthest point from any edge)
-    max_edge_distance = min(w / 2, h / 2)
-    # Compute an adaptive threshold: At the center (edge_distances==max_edge_distance),
-    # threshold = CFG_CENTER_THRESHOLD. At the edges (edge_distances near 0),
-    # threshold increases by CFG_THRESHOLD_DISTANCE_SCALE.
-    threshold_map = CFG_CENTER_THRESHOLD + (1 - edge_distances / max_edge_distance) * CFG_THRESHOLD_DISTANCE_SCALE
-    threshold_map = np.clip(threshold_map, 0, 255).astype(np.uint8)
-
-    # --- Apply additional lightening around the active centroid (if any) ---
-    if active_centroid is not None:
-        # Compute the distance of each pixel to the active centroid
-        dist_to_centroid = np.sqrt((x_indices - active_centroid[0])**2 + (y_indices - active_centroid[1])**2)
-        # Create a mask for pixels within the defined drag radius
-        mask = dist_to_centroid < CFG_DRAG_RADIUS
-        # Lighten the threshold in that area (i.e. subtract a constant amount)
-        threshold_map[mask] = np.clip(threshold_map[mask] - CFG_LIGHTEN_AMOUNT, 0, 255)
-    # -------------------------------------------------------------
-
-    # Apply the per-pixel threshold to the difference image
-    thresh = np.uint8((diff > threshold_map) * 255)
-
+    # Apply adaptive threshold
+    ret2,diff = cv2.threshold(diff,lowerthresh,255,cv2.THRESH_BINARY)
+    #ret, diff = cv2.threshold(diff, lowerthresh, 255, cv2.THRESH_BINARY)
+    #diff = cv2.adaptiveThreshold(diff, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, block_size, C)
+    
     # Use morphological operations to remove small noise
     kernel = np.ones((3, 3), np.uint8)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+    diff = cv2.morphologyEx(diff, cv2.MORPH_OPEN, kernel)
+    diff = cv2.morphologyEx(diff, cv2.MORPH_CLOSE, kernel)
 
-    # Find all contours in the thresholded image
-    contours, _ = cv2.findContours(
-        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
+    '''kernel = np.ones((5,5),np.uint8)
+    diff = cv2.erode(diff,kernel,iterations = 10)
+    diff = cv2.dilate(diff,kernel,iterations = 10)'''
 
-    # Loop over the contours to detect and draw centroids
-    centroids = []
+    # Find contours
+    contours, _ = cv2.findContours(diff, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
     for cnt in contours:
-        area = cv2.contourArea(cnt)
-        if CONTOUR_MIN_AREA < area < CONTOUR_MAX_AREA:
-            M = cv2.moments(cnt)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                centroids.append([cX, cY])
-                cv2.circle(frame, (cX, cY), 5, (0, 0, 255), -1)
+        x, y, w, h = cv2.boundingRect(cnt)
+        cv2.rectangle(diff, (x, y), (x+w, y+h), (0, 255, 0), 2)  # green rectangle
 
-    # Update the active centroid: if any are detected, use the first one (or you could average them)
-    if centroids:
-        active_centroid = centroids[0]
-    else:
-        active_centroid = None
+    # Filter based on area and aspect ratio to get the rectangular piece
+    '''for cnt in contours:
+        x1,y1 = cnt[0][0]
+        approx = cv2.approxPolyDP(cnt, 0.01*cv2.arcLength(cnt, True), True)
+        #print("polyDP:", approx)
+        if len(approx) == 4:
+            x, y, w, h = cv2.boundingRect(cnt)
+            cv2.putText(diff, 'Rectangle', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            img = cv2.drawContours(diff, [cnt], -1, (0,255,0), 3)'''
+
+
 
     # Display original frame with detected centroids and the threshold image
     if standalone or CFG_SHOW_FRAME:
         cv2.namedWindow("Detected Centroids", cv2.WND_PROP_FULLSCREEN)
-        
         cv2.setWindowProperty("Detected Centroids", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow("Detected Centroids", frame)
-
-    if CFG_SHOW_BG_SUBTRACT:
-        cv2.imshow("Foreground (Background Subtraction)", thresh)
+        cv2.imshow("Detected Centroids", diff)
 
     # Exit the loop when 'q' is pressed
     if standalone and cv2.waitKey(1) == ord("q"):
@@ -234,6 +216,7 @@ def cv_loop() -> list[Any]:
         cv2.destroyAllWindows()
         exit()
 
+    centroids = []
     return centroids
 
 def main() -> None:
@@ -247,11 +230,17 @@ def main() -> None:
     ret, frame = capture.read()
     height, width = frame.shape[:2] #may to readjust this?
     cv2.createTrackbar('Margin', "Controls", 10, min(height, width) // 2, update_contours)
-    cntrl = cv2.imread("Feature Testing/control.png")
+    cntrl = cv2.imread("control.png")
     cv2.imshow("Controls", cntrl)
+
+    cv2.createTrackbar("Block Size", "Controls", 11, 50, nothing)
+    cv2.createTrackbar("C", "Controls", 2, 20, nothing)
+    cv2.createTrackbar("Lower Thresh", "Controls", 0, 255, nothing)
+    cv2.setTrackbarPos('Lower Thresh', 'Controls', 18)
 
 
     while True:
+        
         cv_loop()
 
 if __name__ == "__main__":
