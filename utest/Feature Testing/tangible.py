@@ -172,9 +172,9 @@ def cv_loop() -> list[Any]:
     diff = cv2.bitwise_and(diff, mask)
 
     # Apply adaptive threshold
-    ret2,diff = cv2.threshold(diff,lowerthresh,255,cv2.THRESH_BINARY)
+    #ret2,diff = cv2.threshold(diff,lowerthresh,255,cv2.THRESH_BINARY)
     #ret, diff = cv2.threshold(diff, lowerthresh, 255, cv2.THRESH_BINARY)
-    #diff = cv2.adaptiveThreshold(diff, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, block_size, C)
+    diff = cv2.adaptiveThreshold(diff, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, block_size, C)
     
     # Use morphological operations to remove small noise
     kernel = np.ones((3, 3), np.uint8)

@@ -15,7 +15,7 @@ pygame.init()
 # Game settings
 WIDTH, HEIGHT = 1400, 1050
 TARGET_SPAWN_RATE = 0.3  # New targets spawn every 1 second
-TARGET_SPACING = 60
+
 MAX_TARGETS = 10
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -33,6 +33,7 @@ GAME_DURATION = args.duration  # Duration from command line argument
 USERNAME = args.username  # Username from command line argument
 TARGET_RADIUS = args.radius
 MOUSE_MODE = args.mouse > 0
+TARGET_SPACING = TARGET_RADIUS*2
 
 # Screen setup
 
@@ -81,6 +82,7 @@ def writeResults() -> None:
                 USERNAME,
                 TARGET_RADIUS,
                 MOUSE_MODE,
+                score,
                 misses,
                 avg_tap_time(),
                 med_tap_time(),
@@ -223,14 +225,12 @@ def game():
         # Update the display
         pygame.display.update()
 
+    # Clean up and quit the game
     if completed:
+        pygame.quit()
         if not MOUSE_MODE:
             misses = input("num misses: ")
         writeResults()
-
-    # Clean up and quit the game
-    pygame.quit()
-
 
 if __name__ == "__main__":
     game()
