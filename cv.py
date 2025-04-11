@@ -67,7 +67,7 @@ def _crop_bg(frame: np.ndarray) -> None:
 
         cv2.polylines(frame, [corners], True, (0,0,255), 1, cv2.LINE_AA)
         
-        out = warpImage(frame)   
+        out = _warp_image(frame)   
 
     if CFG_SHOW_INITIAL_BG:
         cv2.imshow("frame", frame)
@@ -147,7 +147,7 @@ def cv_loop() -> list[Any]:
     if CFG_LOG_TIME:
         start = timeit.default_timer()
 
-    frame = warpImage(frame)
+    frame = _warp_image(frame)
 
     # Convert current frame to grayscale
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -166,7 +166,7 @@ def cv_loop() -> list[Any]:
         center_x, center_y = w / 2, h / 2
         distances = np.sqrt((x_indices - center_x) ** 2 + (y_indices - center_y) ** 2)
         max_distance = np.sqrt(center_x ** 2 + center_y ** 2)
-        threshold_map = CFG_CENTER_THRESHOLD + (distances / max_distance) * CFG_THRESHOLD_DISTANCE_SCALE
+        threshold_map = CENTER_THRESHOLD + (distances / max_distance) * THRESHOLD_DISTANCE_SCALE
     if CFG_ADAPTIVE_RECT:
         dist_left = x_indices
         dist_right = w - x_indices
@@ -175,7 +175,7 @@ def cv_loop() -> list[Any]:
         # The minimum distance to any edge:
         edge_distances = np.minimum(np.minimum(dist_left, dist_right), np.minimum(dist_top, dist_bottom))
         max_edge_distance = min(w / 2, h / 2)
-        threshold_map = CFG_CENTER_THRESHOLD + (1 - edge_distances / max_edge_distance) * CFG_THRESHOLD_DISTANCE_SCALE
+        threshold_map = CENTER_THRESHOLD_RECT + (1 - edge_distances / max_edge_distance) * THRESHOLD_DISTANCE_SCALE_RECT
         threshold_map = np.clip(threshold_map, 0, 255).astype(np.uint8)
         thresh = np.uint8((diff > threshold_map) * 255)
     if CFG_ADAPTIVE or CFG_ADAPTIVE_RECT:
