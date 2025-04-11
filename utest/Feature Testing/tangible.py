@@ -3,6 +3,8 @@ from typing import Any
 import cv2
 import numpy as np
 
+import timeit
+
 # Run `ls /dev | grep video` to see which idx to use for the camera
 CAM_IDX: int = 0
 
@@ -39,6 +41,9 @@ bg: np.ndarray = np.zeros(0)
 transformed: bool = False
 mat: cv2.typing.MatLike
 current_margin:int=0
+acctime = 0
+frames = 0
+
 
 def update_contours(margin):
     global current_margin
@@ -144,16 +149,27 @@ def make_odd(val):
 def nothing(x):
     pass
 
+skipframe: int = 20
+cnt:int = 0
+
 def cv_loop() -> list[Any]:
+    #global acctime, frames
+    start = timeit.default_timer()
+    global cnt
     block_size = cv2.getTrackbarPos("Block Size", "Controls")
     C = cv2.getTrackbarPos("C", "Controls")
     lowerthresh= cv2.getTrackbarPos("Lower Thresh", "Controls")
+
 
     block_size = make_odd(max(3, block_size))  # Ensure block size is odd and >=3
 
     global active_centroid, current_margin
 
     ret, frame = capture.read()
+    '''if cnt != skipframe:
+        cnt += 1
+        return'''
+    
 
     if not ret:
         print("Failed to capture frame from camera. Exiting...")
@@ -177,20 +193,47 @@ def cv_loop() -> list[Any]:
     diff = cv2.adaptiveThreshold(diff, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, block_size, C)
     
     # Use morphological operations to remove small noise
-    kernel = np.ones((3, 3), np.uint8)
+    '''kernel = np.ones((3, 3), np.uint8)
     diff = cv2.morphologyEx(diff, cv2.MORPH_OPEN, kernel)
-    diff = cv2.morphologyEx(diff, cv2.MORPH_CLOSE, kernel)
+    diff = cv2.morphologyEx(diff, cv2.MORPH_CLOSE, kernel)'''
 
-    '''kernel = np.ones((5,5),np.uint8)
-    diff = cv2.erode(diff,kernel,iterations = 10)
-    diff = cv2.dilate(diff,kernel,iterations = 10)'''
+    '''kernel = np.ones((3,3),np.uint8)
+    diff = cv2.erode(diff,kernel,iterations = 1)'''
+    '''diff = cv2.dilate(diff,kernel,iterations = 10)'''
+
+    # Detect circles using HoughCircles
+    #diff = cv2.medianBlur(diff, 7)
+    #diff = cv2.GaussianBlur(diff, (7,7),0)
+
+    circles = cv2.HoughCircles(
+    diff,
+    cv2.HOUGH_GRADIENT,
+    dp=cv2.getTrackbarPos("dp", "Controls")/10, 
+    minDist=cv2.getTrackbarPos("minDist", "Controls"),
+    param1=cv2.getTrackbarPos("param1", "Controls"),
+    param2=cv2.getTrackbarPos("param2", "Controls") /10,   # Increase if detecting too many false positives
+    minRadius=cv2.getTrackbarPos("minRadius", "Controls"),
+    maxRadius=cv2.getTrackbarPos("maxRadius", "Controls")
+    )
+
+
+    # Draw circles if any were found
+    if circles is not None:
+        circles = np.round(circles[0, :]).astype("int")
+        for (x, y, r) in circles:
+            cv2.circle(frame, (x, y), r, (0, 155, 0), 2)   # outer circle
+            cv2.circle(frame, (x, y), 2, (0, 155, 0), 3)   # center dot
+    
+
+
+    
 
     # Find contours
-    contours, _ = cv2.findContours(diff, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    #contours, _ = cv2.findContours(diff, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    for cnt in contours:
+    '''for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        cv2.rectangle(diff, (x, y), (x+w, y+h), (0, 255, 0), 2)  # green rectangle
+        cv2.rectangle(diff, (x, y), (x+w, y+h), (0, 255, 0), 2)  # green rectangle'''
 
     # Filter based on area and aspect ratio to get the rectangular piece
     '''for cnt in contours:
@@ -208,12 +251,22 @@ def cv_loop() -> list[Any]:
     if standalone or CFG_SHOW_FRAME:
         cv2.namedWindow("Detected Centroids", cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty("Detected Centroids", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow("Detected Centroids", diff)
+        cv2.imshow("Detected Centroids", frame)
+        '''cv2.namedWindow("Diff", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Diff", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("Diff", diff)'''
+
+
+    stop = timeit.default_timer()
+    #frames+=1
+    #acctime += stop-start
+    print(stop-start)
 
     # Exit the loop when 'q' is pressed
     if standalone and cv2.waitKey(1) == ord("q"):
         capture.release()
         cv2.destroyAllWindows()
+        print("mean time: ", frames/acctime)
         exit()
 
     centroids = []
@@ -237,6 +290,21 @@ def main() -> None:
     cv2.createTrackbar("C", "Controls", 2, 20, nothing)
     cv2.createTrackbar("Lower Thresh", "Controls", 0, 255, nothing)
     cv2.setTrackbarPos('Lower Thresh', 'Controls', 18)
+    cv2.setTrackbarPos('Block Size', 'Controls', 32)
+    cv2.setTrackbarPos('C', 'Controls', 6)
+    ##Hough Circles
+    cv2.createTrackbar("dp", "Controls", 10, 30, nothing)
+    cv2.createTrackbar("minDist", "Controls", 0, 255, nothing)
+    cv2.createTrackbar("param1", "Controls", 0, 1200, nothing)
+    cv2.createTrackbar("param2", "Controls", 1, 300, nothing)
+    cv2.createTrackbar("minRadius", "Controls", 0, 255, nothing)
+    cv2.createTrackbar("maxRadius", "Controls", 0, 255, nothing)
+    cv2.setTrackbarPos("dp", "Controls", 10)
+    cv2.setTrackbarPos("minDist", "Controls", 190)
+    cv2.setTrackbarPos("param1", "Controls", 352)
+    cv2.setTrackbarPos("param2", "Controls", 156)
+    cv2.setTrackbarPos("minRadius", "Controls", 124)
+    cv2.setTrackbarPos("maxRadius", "Controls", 150)
 
 
     while True:

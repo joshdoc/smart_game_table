@@ -7,7 +7,7 @@ import time
 import numpy as np
 import pygame
 
-from warp import cv_init, cv_loop
+from warp_adaptive import cv_init, cv_loop
 
 # Initialize Pygame
 pygame.init()
