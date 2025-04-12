@@ -7,7 +7,8 @@ import time
 import numpy as np
 import pygame
 
-from cv import cv_init, cv_loop
+#from cv import cv_init, cv_loop, update_contours, nothing
+from cv import *
 
 # Initialize Pygame
 pygame.init()
@@ -19,6 +20,7 @@ TARGET_SPAWN_RATE = 0.3  # New targets spawn every 1 second
 MAX_TARGETS = 10
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
+BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
 TIME_TO_TAP = False
 
@@ -94,11 +96,17 @@ def writeResults() -> None:
 if not MOUSE_MODE:
     cv_init()
 
+clock = pygame.time.Clock()
 
 def game():
+    # Set up the clock for managing the framerate 
+    
+
     global misses, score
     screen = pygame.display.set_mode((1400, 1050))
     pygame.display.set_caption("Tap the Target Game")
+
+    
 
     # Font for displaying text
     font = pygame.font.SysFont("Arial", 24)
@@ -155,6 +163,8 @@ def game():
                 target_x, target_y, creation_time = target
 
                 for centroid in centroids:
+                    pygame.draw.circle(screen, BLUE, (centroid[0], centroid[1]), 5)
+                    
                     distance_from_center = distance(
                         centroid[0], centroid[1], target_x, target_y
                     )
@@ -204,6 +214,14 @@ def game():
         # Show the score, average tap time, and average accuracy on the screen
         score_text = font.render(f"Score: {score}", True, (0, 0, 0))
         screen.blit(score_text, (WIDTH - 120, 10))
+        # Draw the fps on the screen
+        
+        
+        # Get the framerate
+        framerate = clock.get_fps()
+        # Render the FPS text
+        framerate_text = font.render(f"FPS: {framerate:.2f}", True, (0, 0, 0))
+        screen.blit(framerate_text, (10, 100))
 
         if TIME_TO_TAP:
             avg_tap_time_text = font.render(
@@ -222,6 +240,10 @@ def game():
 
         # Update the display
         pygame.display.update()
+
+        # Limit the frame rate to 60 frames per second
+        #pygame.display.flip()
+        clock.tick(60)
 
     # Clean up and quit the game
     if completed:
