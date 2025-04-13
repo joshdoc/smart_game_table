@@ -3,13 +3,13 @@ setlocal enabledelayedexpansion
 
 :: Check if username was provided
 if "%~1"=="" (
-    echo Usage: user_test.bat <USERNAME>
+    echo Usage: user_test.bat USERNAME
     exit /b
 )
 
 :: Store the username from the command-line argument
-set username=%~1'
-set time=5
+set username=%~1
+set time=20
 
 :: Define test parameters: duration radius mouse_mode
 set test1=!time! 10 1
