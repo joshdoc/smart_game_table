@@ -12,7 +12,7 @@ CAM_IDX: int = 0
 # USAGE: frame[CROP]         Y1:Y2      , X1:X2
 CROP: tuple[slice, slice] = (slice(0, 1), slice(0, 1))
 CROP_SCALE: float = 0.975
-CROP_MIN_THRESH: int = 80
+CROP_MIN_THRESH: int = 30
 
 X_OFFSET: int = 25
 Y_OFFSET: int = 15
@@ -52,6 +52,10 @@ CFG_ADAPTIVE_RECT: bool = False # overrides adaptive if both true
 
 ALPHA = .5
 BETA = 1 - ALPHA  # Inverse transparency factor for the background
+CUT_LOW = 15
+CUT_RIGHT = 5
+CUT_LEFT = 5
+CUT_TOP = 10
 
 ### Globals ###
 corners: np.ndarray = np.zeros(0)
@@ -69,13 +73,21 @@ def _reorder_corners(corners: np.ndarray) -> np.ndarray:
     new_corners = copy.deepcopy(corners)
     for cor in corners: # Strange ordering to line up with table
         if cor[0][0] < threshold and cor[0][1] < threshold:
-            new_corners[1] = cor # LOW, LOW
+            new_corners[1] = cor
         elif cor[0][0] > threshold and cor[0][1] < threshold:
-             new_corners[0] = cor # BIG, LOW
+             new_corners[0] = cor
         elif cor[0][0] > threshold and cor[0][1] > threshold:
-             new_corners[3] = cor # BIG, BIG
+             new_corners[3] = cor
         else:
-             new_corners[2] = cor # LOW, BIG
+             new_corners[2] = cor
+    new_corners[2][0][1] -= CUT_LOW
+    new_corners[3][0][1] -= CUT_LOW
+    new_corners[0][0][0] -= CUT_RIGHT
+    new_corners[3][0][0] -= CUT_RIGHT
+    new_corners[1][0][0] -= CUT_LEFT
+    new_corners[2][0][0] -= CUT_LEFT
+    new_corners[2][0][1] += CUT_TOP
+    new_corners[3][0][1] += CUT_TOP
     return new_corners
 
 ### Get the corners of the table for cropping the image
@@ -150,7 +162,20 @@ def cv_init() -> None:
     # Set the desired width and height if supported by the camera
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    #capture.set(cv2.CAP_PROP_BRIGHTNESS,0)
+    
+
+    capture.set(cv2.CAP_PROP_BRIGHTNESS, 30)
+    capture.set(cv2.CAP_PROP_CONTRAST, 10)
+    capture.set(cv2.CAP_PROP_SATURATION, 0)
+    capture.set(cv2.CAP_PROP_SHARPNESS, 0)
+    
+    capture.set(cv2.CAP_PROP_BACKLIGHT, 0)
+    capture.set(cv2.CAP_PROP_ZOOM, 0)
+    capture.set(cv2.CAP_PROP_EXPOSURE,-8)
+    capture.set(cv2.CAP_PROP_PAN,0)
+    capture.set(cv2.CAP_PROP_TILT,0)
+    #capture.set(cv2.CAP_PROP_FPS,120)
+    #capture.set(cv2.CAP_PROP_EXPOSURE,0)
 
     if not capture.isOpened():
         print("Error: Could not open the camera.")
@@ -201,8 +226,8 @@ def cv_loop() -> list[Any]:
     # Different thresholds for the different sections
     #_, threshI = cv2.threshold(innie, cv2.getTrackbarPos("ThreshI", "Controls"), 255, cv2.THRESH_BINARY)
     #_, threshO = cv2.threshold(outie, cv2.getTrackbarPos("ThreshO", "Controls"), 255, cv2.THRESH_BINARY)
-    _, threshI = cv2.threshold(innie, 28, 255, cv2.THRESH_BINARY)
-    _, threshO = cv2.threshold(outie, 38, 255, cv2.THRESH_BINARY)
+    _, threshI = cv2.threshold(innie, 47, 255, cv2.THRESH_BINARY)
+    _, threshO = cv2.threshold(outie, 69, 255, cv2.THRESH_BINARY)
     thresh = cv2.add(threshI,threshO)
 
     # Use morphological operations to remove small noise
@@ -222,21 +247,35 @@ def cv_loop() -> list[Any]:
     for cnt in contours:
         area = cv2.contourArea(cnt)
 
-        '''hull = cv2.convexHull(cnt)
+        hull = cv2.convexHull(cnt)
         hull_area = cv2.contourArea(hull)
         solidity = float(area) / hull_area if hull_area > 0 else 0
-        if solidity > 0.8:
+        '''M = cv2.moments(cnt)
+        if M["m00"] != 0:
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+        txt = f"HArea:{hull_area:.2f}"
+        cv2.putText(frame, txt, (cX, cY),cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        '''
+        if solidity > 0.8 and hull_area<1500 and hull_area > 100:
             cv2.drawContours(frame, [hull], 0, (255, 255, 0), 2)
+            M = cv2.moments(cnt)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                # Draw the centroid on the frame
+                centroids.append([cX, cY])
+                cv2.circle(frame, (cX, cY), 5, (0, 255, 255), -1)
 
-        x, y, w, h = cv2.boundingRect(cnt)
+        '''x, y, w, h = cv2.boundingRect(cnt)
         aspect_ratio = float(w) / h
         #print(aspect_ratio)
         if 0.6 < aspect_ratio < 0.95:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # green box, thickness 2
-            '''
+        '''
         
         # Filter out very small/large contours (adjust the threshold as needed)
-        if CONTOUR_MIN_AREA < area and area < CONTOUR_MAX_AREA:
+        '''if CONTOUR_MIN_AREA < area and area < CONTOUR_MAX_AREA:
             # Calculate moments for each contour
             M = cv2.moments(cnt)
             if M["m00"] != 0:
@@ -247,7 +286,8 @@ def cv_loop() -> list[Any]:
                 cv2.circle(frame, (cX, cY), 5, (0, 0, 255), -1)
                 #txt = f"Area:{area:.2f}"
                 #cv2.putText(frame, txt, (cX, cY),cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-
+        '''
+        
      # Calculate FPS every second
     current_time = time.time()  # Current time
     elapsed_time = current_time - start_time  # Time elapsed since the last FPS calculation
@@ -276,7 +316,7 @@ def cv_loop() -> list[Any]:
         # Convert the single-channel image1 to a three-channel image
         #t_colored = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
         #overlayed_image = cv2.addWeighted(t_colored, ALPHA, frame, BETA, 0)
-
+        #cv2.imshow("Detected Centroids", overlayed_image)
         cv2.imshow("Detected Centroids", frame)
 
     if CFG_SHOW_BG_SUBTRACT:
@@ -313,11 +353,13 @@ def main() -> None:
     cv2.imshow("Controls", cntrl)
 
     cv2.createTrackbar("ThreshI", "Controls", 0, 255, nothing)
-    cv2.setTrackbarPos('ThreshI', 'Controls', 28) ##inner
+    cv2.setTrackbarPos('ThreshI', 'Controls', 47) ##inner
     cv2.createTrackbar("ThreshO", "Controls", 0, 255, nothing)
-    cv2.setTrackbarPos('ThreshO', 'Controls', 38) ##outer
+    cv2.setTrackbarPos('ThreshO', 'Controls', 69) ##outer
     cv2.createTrackbar("ConMinArea", "Controls", 0, 120, nothing)
-    cv2.setTrackbarPos('ConMinArea', 'Controls', 35) ##outer
+    cv2.setTrackbarPos('ConMinArea', 'Controls', 35) 
+    cv2.createTrackbar("CameraSet", "Controls", 0, 10, nothing)
+    cv2.setTrackbarPos('CameraSet', 'Controls', 0) 
 
     while True:
         cv_loop()

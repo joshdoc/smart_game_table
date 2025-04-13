@@ -34,6 +34,7 @@ args = parser.parse_args()
 GAME_DURATION = args.duration  # Duration from command line argument
 USERNAME = args.username  # Username from command line argument
 TARGET_RADIUS = args.radius
+CENTROID_RADIUS = 15
 MOUSE_MODE = args.mouse > 0
 TARGET_SPACING = TARGET_RADIUS*2
 
@@ -125,6 +126,10 @@ def game():
         if elapsed_time >= GAME_DURATION:
             running = False
             completed = True
+        
+        if MOUSE_MODE:
+                x, y = pygame.mouse.get_pos()
+                pygame.draw.circle(screen, BLUE, (x,y), CENTROID_RADIUS)
 
         # Event handling
         for event in pygame.event.get():
@@ -132,14 +137,16 @@ def game():
                 running = False
             if MOUSE_MODE and event.type == pygame.MOUSEBUTTONDOWN:
                 miss = 1
+                
                 x, y = pygame.mouse.get_pos()
+                pygame.draw.circle(screen, BLUE, (x,y), CENTROID_RADIUS)
 
                 for target in targets[:]:
                     target_x, target_y, creation_time = target
                     distance_from_center = distance(x, y, target_x, target_y)
 
                     # Check if click is within the target
-                    if distance_from_center <= TARGET_RADIUS:
+                    if distance_from_center <= TARGET_RADIUS+CENTROID_RADIUS:
                         if TIME_TO_TAP:
                             tap_time = time.time() - creation_time
                         else:
@@ -163,14 +170,15 @@ def game():
                 target_x, target_y, creation_time = target
 
                 for centroid in centroids:
-                    pygame.draw.circle(screen, BLUE, (centroid[0], centroid[1]), 5)
-                    
+                    pygame.draw.circle(screen, BLUE, (centroid[0], centroid[1]), CENTROID_RADIUS)
+                            
+
                     distance_from_center = distance(
                         centroid[0], centroid[1], target_x, target_y
                     )
 
                     # Check if click is within the target
-                    if distance_from_center <= TARGET_RADIUS:
+                    if distance_from_center <= TARGET_RADIUS+CENTROID_RADIUS:
                         if TIME_TO_TAP:
                             tap_time = time.time() - creation_time
                         else:
@@ -243,7 +251,7 @@ def game():
 
         # Limit the frame rate to 60 frames per second
         #pygame.display.flip()
-        clock.tick(60)
+        clock.tick(30)
 
     # Clean up and quit the game
     if completed:

@@ -47,17 +47,27 @@ def _warp_image(image: np.ndarray) -> np.ndarray:
         cv2.waitKey(1)
     return out
 
+def nothing(x):
+    pass
 
 # Function to open the webcam and show the video feed
 def read_webcam(camera_index=0, width=640, height=480, show_fps=False):
     global corners
+    cv2.namedWindow("Controls", cv2.WND_PROP_FULLSCREEN)
+    cv2.createTrackbar('Margin', "Controls", 10, min(height, width) // 2, nothing)
+    cntrl = cv2.imread("control.png")
+    cv2.imshow("Controls", cntrl)
+    cv2.createTrackbar("Cam", "Controls", 0, 400, nothing)
+    cv2.setTrackbarPos('Cam', 'Controls', 28) ##inner
+    
     # Open a connection to the webcam
     cap = cv2.VideoCapture(camera_index)
 
     # Set the desired width and height if supported by the camera
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-    cap.set(cv2.CAP_PROP_BRIGHTNESS,0)
+
+    cap.set(cv2.CAP_PROP_EXPOSURE,-8)
 
     if not cap.isOpened():
         print("Could not open webcam")
@@ -88,9 +98,9 @@ def read_webcam(camera_index=0, width=640, height=480, show_fps=False):
 
             peri = cv2.arcLength(table_outline, True)
             corners = cv2.approxPolyDP(table_outline, 0.04 * peri, True)
-            print(corners)
-            corners = reorder_corners(corners)
-            print("rearranged:", corners)
+            #print(corners)
+            #corners = _reorder_corners(corners)
+            #print("rearranged:", corners)
             cv2.polylines(frame, [corners], True, (0,0,255), 1, cv2.LINE_AA)
 
 
@@ -99,7 +109,12 @@ def read_webcam(camera_index=0, width=640, height=480, show_fps=False):
         cv2.setWindowProperty(
             "Webcam", cv2.WND_PROP_FULLSCREEN, 1
         )
-        cv2.imshow('Webcam', _warp_image(frame))
+        cv2.imshow('Webcam', (frame))
+
+
+        
+
+        
 
         # Break the loop on 'q' key press
         if cv2.waitKey(1) & 0xFF == ord('q'):
