@@ -3,6 +3,7 @@ from typing import Any
 import cv2
 import numpy as np
 import time
+import copy
 
 ### Constants ###
 # Run `ls /dev | grep video` to see which idx to use for the camera
@@ -11,7 +12,7 @@ CAM_IDX: int = 0
 # USAGE: frame[CROP]         Y1:Y2      , X1:X2
 CROP: tuple[slice, slice] = (slice(0, 1), slice(0, 1))
 CROP_SCALE: float = 0.975
-CROP_MIN_THRESH: int = 40
+CROP_MIN_THRESH: int = 80
 
 X_OFFSET: int = 25
 Y_OFFSET: int = 15
@@ -62,6 +63,20 @@ fps = 0
 frame_count = 0
 start_time = time.time()
 
+### Define a function to reorder rectangle corners
+def _reorder_corners(corners: np.ndarray) -> np.ndarray:
+    threshold = 200
+    new_corners = copy.deepcopy(corners)
+    for cor in corners: # Strange ordering to line up with table
+        if cor[0][0] < threshold and cor[0][1] < threshold:
+            new_corners[1] = cor # LOW, LOW
+        elif cor[0][0] > threshold and cor[0][1] < threshold:
+             new_corners[0] = cor # BIG, LOW
+        elif cor[0][0] > threshold and cor[0][1] > threshold:
+             new_corners[3] = cor # BIG, BIG
+        else:
+             new_corners[2] = cor # LOW, BIG
+    return new_corners
 
 ### Get the corners of the table for cropping the image
 def _crop_bg(frame: np.ndarray) -> None:
@@ -78,10 +93,9 @@ def _crop_bg(frame: np.ndarray) -> None:
 
         peri = cv2.arcLength(table_outline, True)
         corners = cv2.approxPolyDP(table_outline, 0.04 * peri, True)
-
         cv2.polylines(frame, [corners], True, (0,0,255), 1, cv2.LINE_AA)
-        
-        out = _warp_image(frame)   
+        corners = _reorder_corners(corners)
+        #out = _warp_image(frame)   
 
     if CFG_SHOW_INITIAL_BG:
         cv2.imshow("frame", frame)
@@ -136,6 +150,7 @@ def cv_init() -> None:
     # Set the desired width and height if supported by the camera
     capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    #capture.set(cv2.CAP_PROP_BRIGHTNESS,0)
 
     if not capture.isOpened():
         print("Error: Could not open the camera.")
@@ -259,10 +274,10 @@ def cv_loop() -> list[Any]:
 
         # Perform weighted addition
         # Convert the single-channel image1 to a three-channel image
-        t_colored = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
-        overlayed_image = cv2.addWeighted(t_colored, ALPHA, frame, BETA, 0)
+        #t_colored = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+        #overlayed_image = cv2.addWeighted(t_colored, ALPHA, frame, BETA, 0)
 
-        cv2.imshow("Detected Centroids", overlayed_image)
+        cv2.imshow("Detected Centroids", frame)
 
     if CFG_SHOW_BG_SUBTRACT:
         cv2.imshow("Foreground (Background Subtraction)", thresh)
