@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import copy
+import time
 
 CFG_SHOW_INITIAL_CROP=False
 SHOW_FPS=False
@@ -64,10 +65,21 @@ def read_webcam(camera_index=0, width=640, height=480, show_fps=False):
     cap = cv2.VideoCapture(camera_index)
 
     # Set the desired width and height if supported by the camera
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+    '''capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    
 
-    cap.set(cv2.CAP_PROP_EXPOSURE,-8)
+    capture.set(cv2.CAP_PROP_BRIGHTNESS, 30)
+    capture.set(cv2.CAP_PROP_CONTRAST, 10)
+    capture.set(cv2.CAP_PROP_SATURATION, 0)
+    capture.set(cv2.CAP_PROP_SHARPNESS, 0)
+    
+    capture.set(cv2.CAP_PROP_BACKLIGHT, 0)
+    capture.set(cv2.CAP_PROP_ZOOM, 0)
+    capture.set(cv2.CAP_PROP_EXPOSURE,-8)
+    capture.set(cv2.CAP_PROP_PAN,0)
+    capture.set(cv2.CAP_PROP_TILT,0)
+    time.sleep(3)'''
 
     if not cap.isOpened():
         print("Could not open webcam")
@@ -89,7 +101,7 @@ def read_webcam(camera_index=0, width=640, height=480, show_fps=False):
             cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 30, 255, cv2.THRESH_BINARY)
+        _, thresh = cv2.threshold(gray, 40, 255, cv2.THRESH_BINARY)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # largest contour is the table

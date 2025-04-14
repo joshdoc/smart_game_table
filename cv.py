@@ -164,7 +164,7 @@ def cv_init() -> None:
     capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     
 
-    capture.set(cv2.CAP_PROP_BRIGHTNESS, 30)
+    '''capture.set(cv2.CAP_PROP_BRIGHTNESS, 30)
     capture.set(cv2.CAP_PROP_CONTRAST, 10)
     capture.set(cv2.CAP_PROP_SATURATION, 0)
     capture.set(cv2.CAP_PROP_SHARPNESS, 0)
@@ -174,6 +174,7 @@ def cv_init() -> None:
     capture.set(cv2.CAP_PROP_EXPOSURE,-8)
     capture.set(cv2.CAP_PROP_PAN,0)
     capture.set(cv2.CAP_PROP_TILT,0)
+    time.sleep(3)'''
     #capture.set(cv2.CAP_PROP_FPS,120)
     #capture.set(cv2.CAP_PROP_EXPOSURE,0)
 
