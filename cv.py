@@ -70,9 +70,11 @@ TARGET = [(0, 0), (WIDTH, 0), (WIDTH, HEIGHT), (0, HEIGHT)]
 
 # offsets for correcting warp errors
 CUT_LOW = 15
-CUT_RIGHT = 5
-CUT_LEFT = 5
+CUT_RIGHT = -10
+CUT_LEFT = -10
 CUT_TOP = -10
+TOP_LEFT_CORRECTION_FACTOR_X: int = 10
+TOP_LEFT_CORRECTION_FACTOR_Y: int = 10
 
 # Parameters for centroid detection
 HULL_MIN_SOLIDITY: float = 0.8
@@ -307,6 +309,11 @@ def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
     thresh = cv2.add(threshI, threshO)
     return thresh
 
+def _top_left_corner_correction(x: int, y: int) -> tuple[int, int]:
+    if x < 200 and y < 200:
+        x -= 10
+        y -= 10
+    return x, y
 
 def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> list[Any]:
     centroids: list[Centroid] = []
@@ -322,6 +329,7 @@ def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> lis
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
+                cX, cY = _top_left_corner_correction(cX, cY)
                 centroids.append(Centroid(cX, cY, hull))
 
     return centroids
