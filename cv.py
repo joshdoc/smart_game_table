@@ -19,8 +19,7 @@ CROP_MIN_THRESH: int = 30  # threshold for detecting the edges
 
 FINGER_MIN_AREA: int = 35  # TODO: use these constants
 FINGER_MAX_AREA: int = 1000
-
-
+  
 # define screen size for warping the image
 WIDTH = 1400
 HEIGHT = 1050
@@ -228,6 +227,7 @@ def _trackbar_init() -> None:
     cv2.createTrackbar(
         "Margin", "Controls", 10, min(height, width) // 2, _update_contours
     )
+
     control_image = cv2.imread("debug/control.png")
     cv2.imshow("Controls", control_image)
 
@@ -265,7 +265,6 @@ def _trackbar_init() -> None:
     cv2.setTrackbarPos("minRadius", "Controls", 124)
     cv2.setTrackbarPos("maxRadius", "Controls", 150)
 
-
 ####################################################################################################
 # Public Functions                                                                                 #
 ####################################################################################################
@@ -299,7 +298,7 @@ def cv_loop() -> list[Any]:
     C = cv2.getTrackbarPos("C", "Controls")'''
 
     if not ret:
-        print("Failed to capture frame from camera. Exiting...")
+        print("Error: Could not read frame.")
         exit()
 
     frame = _warp_image(frame)
@@ -333,6 +332,7 @@ def cv_loop() -> list[Any]:
     else:
         _, threshI = cv2.threshold(inner, 47, 255, cv2.THRESH_BINARY)
         _, threshO = cv2.threshold(outer, 69, 255, cv2.THRESH_BINARY)
+
     thresh = cv2.add(threshI, threshO)
 
     # Use morphological operations to remove small noise
@@ -353,10 +353,10 @@ def cv_loop() -> list[Any]:
         hull = cv2.convexHull(cnt)
         hull_area = cv2.contourArea(hull)
         solidity = float(area) / hull_area if hull_area > 0 else 0
+
         if (solidity > 0.8 and hull_area < 1500 and hull_area > 100) or (
             solidity > 0.8 and hull_area < 55000 and hull_area > 40000
         ):
-
             cv2.drawContours(frame, [hull], 0, (255, 255, 0), 2)
             M = cv2.moments(cnt)
             if M["m00"] != 0:
