@@ -7,8 +7,7 @@ import time
 import numpy as np
 import pygame
 
-#from cv import cv_init, cv_loop, update_contours, nothing
-from cv import *
+import cv
 
 # Initialize Pygame
 pygame.init()
@@ -36,7 +35,7 @@ USERNAME = args.username  # Username from command line argument
 TARGET_RADIUS = args.radius
 CENTROID_RADIUS = 15
 MOUSE_MODE = args.mouse > 0
-TARGET_SPACING = TARGET_RADIUS*2
+TARGET_SPACING = TARGET_RADIUS * 2
 
 # Screen setup
 
@@ -95,19 +94,17 @@ def writeResults() -> None:
 
 # Main game loop
 if not MOUSE_MODE:
-    cv_init()
+    cv.cv_init(detect_fingers=True, detect_cds=False)
 
 clock = pygame.time.Clock()
 
+
 def game():
-    # Set up the clock for managing the framerate 
-    
+    # Set up the clock for managing the framerate
 
     global misses, score
     screen = pygame.display.set_mode((1400, 1050))
     pygame.display.set_caption("Tap the Target Game")
-
-    
 
     # Font for displaying text
     font = pygame.font.SysFont("Arial", 24)
@@ -126,10 +123,10 @@ def game():
         if elapsed_time >= GAME_DURATION:
             running = False
             completed = True
-        
+
         if MOUSE_MODE:
-                x, y = pygame.mouse.get_pos()
-                pygame.draw.circle(screen, BLUE, (x,y), CENTROID_RADIUS)
+            x, y = pygame.mouse.get_pos()
+            pygame.draw.circle(screen, BLUE, (x, y), CENTROID_RADIUS)
 
         # Event handling
         for event in pygame.event.get():
@@ -137,16 +134,16 @@ def game():
                 running = False
             if MOUSE_MODE and event.type == pygame.MOUSEBUTTONDOWN:
                 miss = 1
-                
+
                 x, y = pygame.mouse.get_pos()
-                pygame.draw.circle(screen, BLUE, (x,y), CENTROID_RADIUS)
+                pygame.draw.circle(screen, BLUE, (x, y), CENTROID_RADIUS)
 
                 for target in targets[:]:
                     target_x, target_y, creation_time = target
                     distance_from_center = distance(x, y, target_x, target_y)
 
                     # Check if click is within the target
-                    if distance_from_center <= TARGET_RADIUS+CENTROID_RADIUS:
+                    if distance_from_center <= TARGET_RADIUS + CENTROID_RADIUS:
                         if TIME_TO_TAP:
                             tap_time = time.time() - creation_time
                         else:
@@ -159,26 +156,23 @@ def game():
                         miss = 0
                 misses += miss
 
-        # ERRS
-        # PG: 132 311
-        # CV: 171 398
-
         if not MOUSE_MODE:
             # Centroid stuff
-            centroids = cv_loop()
+            centroids = cv.cv_loop()
             for target in targets[:]:
                 target_x, target_y, creation_time = target
 
-                for centroid in centroids:
-                    pygame.draw.circle(screen, BLUE, (centroid[0], centroid[1]), CENTROID_RADIUS)
-                            
+                for centroid in centroids.fingers:
+                    pygame.draw.circle(
+                        screen, BLUE, (centroid.xpos, centroid.ypos), CENTROID_RADIUS
+                    )
 
                     distance_from_center = distance(
-                        centroid[0], centroid[1], target_x, target_y
+                        centroid.xpos, centroid.ypos, target_x, target_y
                     )
 
                     # Check if click is within the target
-                    if distance_from_center <= TARGET_RADIUS+CENTROID_RADIUS:
+                    if distance_from_center <= TARGET_RADIUS + CENTROID_RADIUS:
                         if TIME_TO_TAP:
                             tap_time = time.time() - creation_time
                         else:
@@ -188,9 +182,7 @@ def game():
                         accuracies.append(distance_from_center)
                         score += 1
                         if target in targets:
-                            targets.remove(
-                                target
-                            )  # Remove the target after successful hit
+                            targets.remove(target)  # Remove the target after successful hit
 
         # Spawn new targets at the defined spawn rate
         if time.time() - last_spawn_time >= TARGET_SPAWN_RATE:
@@ -223,8 +215,7 @@ def game():
         score_text = font.render(f"Score: {score}", True, (0, 0, 0))
         screen.blit(score_text, (WIDTH - 120, 10))
         # Draw the fps on the screen
-        
-        
+
         # Get the framerate
         framerate = clock.get_fps()
         # Render the FPS text
@@ -250,7 +241,7 @@ def game():
         pygame.display.update()
 
         # Limit the frame rate to 60 frames per second
-        #pygame.display.flip()
+        # pygame.display.flip()
         clock.tick(30)
 
     # Clean up and quit the game
@@ -262,6 +253,7 @@ def game():
         else:
             _ = input("press enter to continue")
         writeResults()
+
 
 if __name__ == "__main__":
     game()
