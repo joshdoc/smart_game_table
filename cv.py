@@ -16,10 +16,37 @@
 
 import copy
 import time
+from dataclasses import dataclass
 from typing import Any
 
 import cv2
 import numpy as np
+
+####################################################################################################
+# Types                                                                                            #
+####################################################################################################
+
+
+@dataclass
+class Centroid:
+    xpos: int
+    ypos: int
+
+
+@dataclass
+class DetectedCentroids:
+    fingers: list[Centroid]
+    cds: list[Centroid]
+
+
+@dataclass
+class DetectionParameters:
+    inner_threshold: int
+    outer_threshold: int
+    min_area: int
+    max_area: int
+    detect: bool
+
 
 ####################################################################################################
 # Constants                                                                                        #
@@ -35,15 +62,6 @@ CROP: tuple[slice, slice] = (slice(0, 1), slice(0, 1))
 CROP_SCALE: float = 0.975  # scale the cropped image
 CROP_MIN_THRESH: int = 30  # threshold for detecting the edges
 
-# Parameters for centroid detection
-HULL_MIN_SOLIDITY: float = 0.8
-
-FINGER_MIN_AREA: int = 100
-FINGER_MAX_AREA: int = 1500
-
-CD_MIN_AREA: int = 40000
-CD_MAX_AREA: int = 55000
-
 # define screen size for warping the image
 WIDTH = 1400
 HEIGHT = 1050
@@ -55,11 +73,25 @@ CUT_RIGHT = 5
 CUT_LEFT = 5
 CUT_TOP = -10
 
-# Thresholds for the inner/outer portions of table
+# Parameters for centroid detection
+HULL_MIN_SOLIDITY: float = 0.8
+
 FINGER_INNER_THRESHOLD: int = 47
 FINGER_OUTER_THRESHOLD: int = 69
+FINGER_MIN_AREA: int = 100
+FINGER_MAX_AREA: int = 1500
+
 CD_INNER_THRESHOLD: int = 42
 CD_OUTER_THRESHOLD: int = 42
+CD_MIN_AREA: int = 40000
+CD_MAX_AREA: int = 55000
+
+FINGER_PARAMS = DetectionParameters(
+    FINGER_INNER_THRESHOLD, FINGER_OUTER_THRESHOLD, FINGER_MIN_AREA, FINGER_MAX_AREA, False
+)
+CD_PARAMS = DetectionParameters(
+    CD_INNER_THRESHOLD, CD_OUTER_THRESHOLD, CD_MIN_AREA, CD_MAX_AREA, False
+)
 
 # Text options
 TEXT_OPTS = [cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2]
@@ -273,10 +305,8 @@ def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
     return thresh
 
 
-def _detect_centroids(
-    contours: np.ndarray, frame: np.ndarray, min_area: int, max_area: int
-) -> list[Any]:
-    centroids = []
+def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> list[Any]:
+    centroids: list[Centroid] = []
     for cnt in contours:
         area = cv2.contourArea(cnt)
 
@@ -285,13 +315,32 @@ def _detect_centroids(
         solidity = float(area) / hull_area if hull_area > 0 else 0
 
         if solidity > HULL_MIN_SOLIDITY and min_area < hull_area and hull_area < max_area:
-            cv2.drawContours(frame, [hull], 0, (255, 255, 0), 2)
             M = cv2.moments(cnt)
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                centroids.append([cX, cY])
-                cv2.circle(frame, (cX, cY), 5, (0, 255, 255), -1)
+                centroids.append(Centroid(cX, cY))
+
+    return centroids
+
+
+def _run_detection(img: np.ndarray, params: DetectionParameters) -> list[Centroid]:
+    if not params.detect:
+        return []
+
+    thresh = _threshold(img, params.inner_threshold, params.outer_threshold)
+
+    # Use morphological operations to remove small noise
+    kernel = np.ones((3, 3), np.uint8)
+
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
+    # Find all contours in the thresholded image
+    contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Loop over the contours to detect and draw centroids
+    centroids = _detect_centroids(contours, params.min_area, params.max_area)
+
     return centroids
 
 
@@ -301,8 +350,11 @@ def _detect_centroids(
 
 
 ### Initialize the program
-def cv_init() -> None:
+def cv_init(detect_fingers: bool = True, detect_cds: bool = True) -> None:
     _capture_init()
+
+    FINGER_PARAMS.detect = detect_fingers
+    CD_PARAMS.detect = detect_cds
 
     # Automatically crop image
     ret, frame = capture.read()
@@ -321,9 +373,11 @@ def cv_init() -> None:
 
 
 ### Detect centroids (finger presses) and return list
-def cv_loop() -> list[Any]:
+def cv_loop() -> DetectedCentroids:
     global fps, frame_count, start_time
     ret, frame = capture.read()
+
+    retVal = DetectedCentroids([], [])
 
     if not ret:
         print("Error: Could not read frame.")
@@ -337,27 +391,8 @@ def cv_loop() -> list[Any]:
     # Compute absolute difference between the background and current frame
     diff = cv2.absdiff(bg, gray_frame)
 
-    finger_thresh = _threshold(diff, FINGER_INNER_THRESHOLD, FINGER_OUTER_THRESHOLD)
-    cd_thresh = _threshold(diff, CD_INNER_THRESHOLD, CD_OUTER_THRESHOLD)
-
-    # Use morphological operations to remove small noise
-    kernel = np.ones((3, 3), np.uint8)
-
-    finger_thresh = cv2.morphologyEx(finger_thresh, cv2.MORPH_OPEN, kernel)
-    finger_thresh = cv2.morphologyEx(finger_thresh, cv2.MORPH_CLOSE, kernel)
-
-    cd_thresh = cv2.morphologyEx(cd_thresh, cv2.MORPH_OPEN, kernel)
-    cd_thresh = cv2.morphologyEx(cd_thresh, cv2.MORPH_CLOSE, kernel)
-
-    # Find all contours in the thresholded image
-    finger_contours, _ = cv2.findContours(
-        finger_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
-    cd_contours, _ = cv2.findContours(cd_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Loop over the contours to detect and draw centroids
-    finger_centroids = _detect_centroids(finger_contours, frame, FINGER_MIN_AREA, FINGER_MAX_AREA)
-    cd_centroids = _detect_centroids(cd_contours, frame, CD_MIN_AREA, CD_MAX_AREA)
+    retVal.fingers = _run_detection(diff, FINGER_PARAMS)
+    retVal.cds = _run_detection(diff, CD_PARAMS)
 
     frame_count += 1
     current_time = time.time()
@@ -390,7 +425,7 @@ def cv_loop() -> list[Any]:
         cv2.destroyAllWindows()
         exit()
 
-    return cd_centroids + finger_centroids
+    return retVal
 
 
 ####################################################################################################
@@ -402,7 +437,7 @@ def main() -> None:
     global standalone
     standalone = True
 
-    cv_init()
+    cv_init(True, True)
 
     while True:
         cv_loop()

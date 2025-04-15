@@ -5,7 +5,7 @@ import cv
 pg.FAILSAFE = False
 scw, sch = pg.size()
 
-# Mouse settings
+# Scaling
 X_SCALE: float = 1
 Y_SCALE: float = 1
 
@@ -22,9 +22,9 @@ def _move_mouse(xpos: int, ypos: int) -> None:
 def main():
     cv.cv_init()
     while True:
-        position = cv.cv_loop()
-        if len(position):
-            _move_mouse(position[0][0], position[0][1])
+        centroids = cv.cv_loop()
+        if len(centroids.fingers):
+            _move_mouse(centroids.fingers[0].xpos, centroids.fingers[0].ypos)
 
 
 if __name__ == "__main__":
