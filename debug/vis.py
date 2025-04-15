@@ -125,7 +125,6 @@ def read_webcam(camera_index=0, width=640, height=480, show_fps=False):
 
 
         
-
         
 
         # Break the loop on 'q' key press
