@@ -31,6 +31,7 @@ import numpy as np
 class Centroid:
     xpos: int
     ypos: int
+    contour_hull: np.ndarray
 
 
 @dataclass
@@ -114,6 +115,8 @@ CFG_SHOW_FRAME: bool = False
 CFG_SHOW_FPS: bool = True
 # Use the trackbars for settings
 CFG_USE_TRACKBARS: bool = False
+# draw the contours on the frame
+CFG_SHOW_CENTROIDS: bool = True
 
 
 ####################################################################################################
@@ -319,7 +322,7 @@ def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> lis
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                centroids.append(Centroid(cX, cY))
+                centroids.append(Centroid(cX, cY, cnt))
 
     return centroids
 
@@ -409,6 +412,14 @@ def cv_loop() -> DetectedCentroids:
     if CFG_SHOW_FPS:
         fps_display = f"FPS: {fps:.2f}"
         cv2.putText(frame, fps_display, (10, 50), *TEXT_OPTS)
+
+    if CFG_SHOW_CENTROIDS:
+        for centroid in retVal.fingers:
+            cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 255, 0), 2)
+            cv2.circle(frame, (centroid.xpos, centroid.ypos), 5, (0, 255, 255), -1)
+        for centroid in retVal.cds:
+            cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 0, 255), 2)
+            cv2.circle(frame, (centroid.xpos, centroid.ypos), 5, (0, 255, 255), -1)
 
     # Display original frame with detected centroids and the threshold image
     if standalone or CFG_SHOW_FRAME:
