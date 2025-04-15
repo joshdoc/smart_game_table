@@ -62,7 +62,7 @@ CFG_SHOW_FRAME: bool = False
 # Show FPS in frame (each call to cv_loop)
 CFG_SHOW_FPS: bool = True
 # Use the trackbars for settings
-CFG_USE_TRACKBARS: bool = False
+CFG_USE_TRACKBARS: bool = True
 
 # Change mode to adaptive
 CFG_ADAPTIVE: bool = False
@@ -228,7 +228,7 @@ def _trackbar_init() -> None:
     cv2.createTrackbar(
         "Margin", "Controls", 10, min(height, width) // 2, _update_contours
     )
-    control_image = cv2.imread("control.png")
+    control_image = cv2.imread("debug/control.png")
     cv2.imshow("Controls", control_image)
 
     cv2.createTrackbar("ThreshI", "Controls", 0, 255, _nothing)
@@ -294,9 +294,9 @@ def cv_loop() -> list[Any]:
     global fps, frame_count, start_time
     ret, frame = capture.read()
 
-    block_size = cv2.getTrackbarPos("Block Size", "Controls")
+    '''block_size = cv2.getTrackbarPos("Block Size", "Controls")
     block_size = (max(3, block_size)) | 0b1
-    C = cv2.getTrackbarPos("C", "Controls")
+    C = cv2.getTrackbarPos("C", "Controls")'''
 
     if not ret:
         print("Failed to capture frame from camera. Exiting...")
@@ -330,8 +330,9 @@ def cv_loop() -> list[Any]:
             outer, cv2.getTrackbarPos("ThreshO", "Controls"), 255, cv2.THRESH_BINARY
         )
     # TODO: make constants for these thresholds
-    _, threshI = cv2.threshold(inner, 47, 255, cv2.THRESH_BINARY)
-    _, threshO = cv2.threshold(outer, 69, 255, cv2.THRESH_BINARY)
+    else:
+        _, threshI = cv2.threshold(inner, 47, 255, cv2.THRESH_BINARY)
+        _, threshO = cv2.threshold(outer, 69, 255, cv2.THRESH_BINARY)
     thresh = cv2.add(threshI, threshO)
 
     # Use morphological operations to remove small noise
