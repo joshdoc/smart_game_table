@@ -1,3 +1,19 @@
+####################################################################################################
+# CV.py | Authors: mcprisk, dcalco, joshdoc, neelnv                                                #
+#                                                                                                  #
+# This file is used to detect finger presses and tangible object locations on our EECS 498/598     #
+# Engineering Interactive Systems project.                                                         #
+#                                                                                                  #
+# To use: import this file, then call cv_init(), followed by cv_loop().  cv_loop() should be       #
+# be called anytime you want to get new centroid detections, but should not be called faster than  #
+# the camera refresh rate (in our case 30 Hz)                                                      #
+#                                                                                                  #
+####################################################################################################
+
+####################################################################################################
+# Imports                                                                                          #
+####################################################################################################
+
 import copy
 import time
 from typing import Any
@@ -8,6 +24,8 @@ import numpy as np
 ####################################################################################################
 # Constants                                                                                        #
 ####################################################################################################
+
+
 # Run `ls /dev | grep video` to see which idx to use for the camera (or guess on windows)
 CAM_IDX: int = 0
 
@@ -17,9 +35,15 @@ CROP: tuple[slice, slice] = (slice(0, 1), slice(0, 1))
 CROP_SCALE: float = 0.975  # scale the cropped image
 CROP_MIN_THRESH: int = 30  # threshold for detecting the edges
 
-FINGER_MIN_AREA: int = 35  # TODO: use these constants
-FINGER_MAX_AREA: int = 1000
-  
+# Parameters for centroid detection
+HULL_MIN_SOLIDITY: float = 0.8
+
+FINGER_MIN_AREA: int = 100
+FINGER_MAX_AREA: int = 1500
+
+CD_MIN_AREA: int = 40000
+CD_MAX_AREA: int = 55000
+
 # define screen size for warping the image
 WIDTH = 1400
 HEIGHT = 1050
@@ -31,25 +55,21 @@ CUT_RIGHT = 5
 CUT_LEFT = 5
 CUT_TOP = -10
 
-# transparency settings for multi-rectangle thresholding
-ALPHA = 0.5
-BETA = 1 - ALPHA
+# Thresholds for the inner/outer portions of table
+FINGER_INNER_THRESHOLD: int = 47
+FINGER_OUTER_THRESHOLD: int = 69
+CD_INNER_THRESHOLD: int = 42
+CD_OUTER_THRESHOLD: int = 42
 
-# Adaptive | Distance to edge (rect) #
-# Base threshold (applied at the center, farthest from any edge)
-CENTER_THRESHOLD_RECT: int = 28
-# Additional threshold applied at the edges
-THRESHOLD_DISTANCE_SCALE_RECT: float = 22.0
+# Text options
+TEXT_OPTS = [cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2]
 
-# Adaptive | Distance to center #
-# Base threshold at the center of the image
-CENTER_THRESHOLD: int = 40
-# How much the threshold increases at the maximum distance
-THRESHOLD_DISTANCE_SCALE: float = 15.0
 
 ####################################################################################################
 # Configuration                                                                                    #
 ####################################################################################################
+
+
 # Show the initial cropped image (2 seconds)
 CFG_SHOW_INITIAL_CROP: bool = False
 # Show the background subtracted image (each call to cv_loop)
@@ -61,16 +81,13 @@ CFG_SHOW_FRAME: bool = False
 # Show FPS in frame (each call to cv_loop)
 CFG_SHOW_FPS: bool = True
 # Use the trackbars for settings
-CFG_USE_TRACKBARS: bool = True
-
-# Change mode to adaptive
-CFG_ADAPTIVE: bool = False
-CFG_ADAPTIVE_RECT: bool = False  # overrides adaptive if both true
+CFG_USE_TRACKBARS: bool = False
 
 
 ####################################################################################################
 # Globals                                                                                          #
 ####################################################################################################
+
 
 corners: np.ndarray = np.zeros(0)
 standalone: bool = False
@@ -224,9 +241,7 @@ def _trackbar_init() -> None:
     height, width = frame.shape[:2]
 
     cv2.namedWindow("Controls", cv2.WND_PROP_FULLSCREEN)
-    cv2.createTrackbar(
-        "Margin", "Controls", 10, min(height, width) // 2, _update_contours
-    )
+    cv2.createTrackbar("Margin", "Controls", 10, min(height, width) // 2, _update_contours)
 
     control_image = cv2.imread("debug/control.png")
     cv2.imshow("Controls", control_image)
@@ -235,39 +250,56 @@ def _trackbar_init() -> None:
     cv2.setTrackbarPos("ThreshI", "Controls", 47)  # inner
     cv2.createTrackbar("ThreshO", "Controls", 0, 255, _nothing)
     cv2.setTrackbarPos("ThreshO", "Controls", 69)  # outer
-    cv2.createTrackbar("ConMinArea", "Controls", 0, 120, _nothing)
-    cv2.setTrackbarPos("ConMinArea", "Controls", 35)
-    cv2.createTrackbar("CameraSet", "Controls", 0, 10, _nothing)
-    cv2.setTrackbarPos("CameraSet", "Controls", 0)
 
-    cv2.createTrackbar("Block Size", "Controls", 11, 50, _nothing)
-    cv2.createTrackbar("C", "Controls", 1, 20, _nothing)
-    cv2.createTrackbar("Lower Thresh", "Controls", 0, 255, _nothing)
-    cv2.setTrackbarPos("Lower Thresh", "Controls", 18)
-    cv2.setTrackbarPos("Block Size", "Controls", 31)
-    cv2.setTrackbarPos("C", "Controls", 5)
 
-    # CD threshlding - remove later
-    cv2.setTrackbarPos("ThreshI", "Controls", 42)  # inner
-    cv2.setTrackbarPos("ThreshO", "Controls", 42)  # outer
+def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
+    topLX = 313
+    topLY = 198
+    height, width = diff.shape[:2]
+    mask = np.zeros((height, width), dtype=np.uint8)
+    cv2.rectangle(mask, (topLX, topLY), (width - topLX, height - topLY), 255, -1)
+    inner = cv2.bitwise_and(diff, mask)
+    outer = cv2.bitwise_and(diff, cv2.bitwise_not(mask))
 
-    # Hough Circles Controls
-    cv2.createTrackbar("dp", "Controls", 10, 30, _nothing)
-    cv2.createTrackbar("minDist", "Controls", 0, 255, _nothing)
-    cv2.createTrackbar("param1", "Controls", 0, 1200, _nothing)
-    cv2.createTrackbar("param2", "Controls", 1, 800, _nothing)
-    cv2.createTrackbar("minRadius", "Controls", 0, 255, _nothing)
-    cv2.createTrackbar("maxRadius", "Controls", 0, 255, _nothing)
-    cv2.setTrackbarPos("dp", "Controls", 10)
-    cv2.setTrackbarPos("minDist", "Controls", 190)
-    cv2.setTrackbarPos("param1", "Controls", 352)
-    cv2.setTrackbarPos("param2", "Controls", 156)
-    cv2.setTrackbarPos("minRadius", "Controls", 124)
-    cv2.setTrackbarPos("maxRadius", "Controls", 150)
+    # Different thresholds for the different sections
+    if CFG_USE_TRACKBARS:
+        inner_thresh = cv2.getTrackbarPos("ThreshI", "Controls")
+        outer_thresh = cv2.getTrackbarPos("ThreshO", "Controls")
+
+    _, threshI = cv2.threshold(inner, inner_thresh, 255, cv2.THRESH_BINARY)
+    _, threshO = cv2.threshold(outer, outer_thresh, 255, cv2.THRESH_BINARY)
+
+    thresh = cv2.add(threshI, threshO)
+    return thresh
+
+
+def _detect_centroids(
+    contours: np.ndarray, frame: np.ndarray, min_area: int, max_area: int
+) -> list[Any]:
+    centroids = []
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+
+        hull = cv2.convexHull(cnt)
+        hull_area = cv2.contourArea(hull)
+        solidity = float(area) / hull_area if hull_area > 0 else 0
+
+        if solidity > HULL_MIN_SOLIDITY and min_area < hull_area and hull_area < max_area:
+            cv2.drawContours(frame, [hull], 0, (255, 255, 0), 2)
+            M = cv2.moments(cnt)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                centroids.append([cX, cY])
+                cv2.circle(frame, (cX, cY), 5, (0, 255, 255), -1)
+    return centroids
+
 
 ####################################################################################################
 # Public Functions                                                                                 #
 ####################################################################################################
+
+
 ### Initialize the program
 def cv_init() -> None:
     _capture_init()
@@ -293,10 +325,6 @@ def cv_loop() -> list[Any]:
     global fps, frame_count, start_time
     ret, frame = capture.read()
 
-    '''block_size = cv2.getTrackbarPos("Block Size", "Controls")
-    block_size = (max(3, block_size)) | 0b1
-    C = cv2.getTrackbarPos("C", "Controls")'''
-
     if not ret:
         print("Error: Could not read frame.")
         exit()
@@ -307,79 +335,31 @@ def cv_loop() -> list[Any]:
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Compute absolute difference between the background and current frame
-    # circle_diff = cv2.adaptiveThreshold(gray_frame, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, block_size, C)
-    # circle 42/42
     diff = cv2.absdiff(bg, gray_frame)
 
-    # Inner Rectangle (Sens ~24?) / Outer (Sens ~35)
-    topLX = 313
-    topLY = 198
-    height, width = frame.shape[:2]
-    mask = np.zeros((height, width), dtype=np.uint8)
-    cv2.rectangle(mask, (topLX, topLY), (width - topLX, height - topLY), 255, -1)
-    inner = cv2.bitwise_and(diff, mask)
-    outer = cv2.bitwise_and(diff, cv2.bitwise_not(mask))
-
-    # Different thresholds for the different sections
-    if CFG_USE_TRACKBARS:
-        _, threshI = cv2.threshold(
-            inner, cv2.getTrackbarPos("ThreshI", "Controls"), 255, cv2.THRESH_BINARY
-        )
-        _, threshO = cv2.threshold(
-            outer, cv2.getTrackbarPos("ThreshO", "Controls"), 255, cv2.THRESH_BINARY
-        )
-    # TODO: make constants for these thresholds
-    else:
-        _, threshI = cv2.threshold(inner, 47, 255, cv2.THRESH_BINARY)
-        _, threshO = cv2.threshold(outer, 69, 255, cv2.THRESH_BINARY)
-
-    thresh = cv2.add(threshI, threshO)
+    finger_thresh = _threshold(diff, FINGER_INNER_THRESHOLD, FINGER_OUTER_THRESHOLD)
+    cd_thresh = _threshold(diff, CD_INNER_THRESHOLD, CD_OUTER_THRESHOLD)
 
     # Use morphological operations to remove small noise
     kernel = np.ones((3, 3), np.uint8)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
+    finger_thresh = cv2.morphologyEx(finger_thresh, cv2.MORPH_OPEN, kernel)
+    finger_thresh = cv2.morphologyEx(finger_thresh, cv2.MORPH_CLOSE, kernel)
+
+    cd_thresh = cv2.morphologyEx(cd_thresh, cv2.MORPH_OPEN, kernel)
+    cd_thresh = cv2.morphologyEx(cd_thresh, cv2.MORPH_CLOSE, kernel)
 
     # Find all contours in the thresholded image
-    contours, _ = cv2.findContours(
-        thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    finger_contours, _ = cv2.findContours(
+        finger_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
+    cd_contours, _ = cv2.findContours(cd_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Loop over the contours to detect and draw centroids
-    centroids = []
-    for cnt in contours:
-        area = cv2.contourArea(cnt)
+    finger_centroids = _detect_centroids(finger_contours, frame, FINGER_MIN_AREA, FINGER_MAX_AREA)
+    cd_centroids = _detect_centroids(cd_contours, frame, CD_MIN_AREA, CD_MAX_AREA)
 
-        hull = cv2.convexHull(cnt)
-        hull_area = cv2.contourArea(hull)
-        solidity = float(area) / hull_area if hull_area > 0 else 0
-
-        if (solidity > 0.8 and hull_area < 1500 and hull_area > 100) or (
-            solidity > 0.8 and hull_area < 55000 and hull_area > 40000
-        ):
-            cv2.drawContours(frame, [hull], 0, (255, 255, 0), 2)
-            M = cv2.moments(cnt)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                # Draw the centroid on the frame
-                txt = "Solidity:" + str(solidity)
-                txt2 = "Area: " + str(hull_area)
-                cv2.putText(
-                    frame, txt, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2
-                )
-                cv2.putText(
-                    frame,
-                    txt2,
-                    (cX, cY + 40),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (0, 255, 255),
-                    2,
-                )
-                centroids.append([cX, cY])
-                cv2.circle(frame, (cX, cY), 5, (0, 255, 255), -1)
-
+    frame_count += 1
     current_time = time.time()
     elapsed_time = current_time - start_time
 
@@ -391,30 +371,18 @@ def cv_loop() -> list[Any]:
         frame_count = 0
 
     # Display the FPS on the frame
-    fps_display = f"FPS: {fps:.2f}"
-    cv2.putText(
-        thresh, fps_display, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
-    )
-    cv2.putText(
-        frame, fps_display, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2
-    )
-    frame_count += 1  # Increment frame counter
+    if CFG_SHOW_FPS:
+        fps_display = f"FPS: {fps:.2f}"
+        cv2.putText(frame, fps_display, (10, 50), *TEXT_OPTS)
 
     # Display original frame with detected centroids and the threshold image
     if standalone or CFG_SHOW_FRAME:
         cv2.namedWindow("Detected Centroids", cv2.WINDOW_NORMAL)
-
         cv2.setWindowProperty("Detected Centroids", cv2.WND_PROP_FULLSCREEN, 1)
-
-        # Perform weighted addition
-        # Convert the single-channel image1 to a three-channel image
-        # t_colored = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
-        # overlayed_image = cv2.addWeighted(t_colored, ALPHA, frame, BETA, 0)
-        # cv2.imshow("Detected Centroids", overlayed_image)
         cv2.imshow("Detected Centroids", frame)
 
     if CFG_SHOW_BG_SUBTRACT:
-        cv2.imshow("Foreground (Background Subtraction)", thresh)
+        cv2.imshow("Background Subtraction", diff)
 
     # Exit the loop when 'q' is pressed if running standalone
     if standalone and cv2.waitKey(1) == ord("q"):
@@ -422,7 +390,12 @@ def cv_loop() -> list[Any]:
         cv2.destroyAllWindows()
         exit()
 
-    return centroids
+    return cd_centroids + finger_centroids
+
+
+####################################################################################################
+# MAIN                                                                                             #
+####################################################################################################
 
 
 def main() -> None:
