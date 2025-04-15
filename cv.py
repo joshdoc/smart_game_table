@@ -194,11 +194,17 @@ def cv_init() -> None:
     # Capture the background scene for subtraction
     _capture_bg(capture)
 
+def make_odd(val):
+    return val if val % 2 == 1 else val + 1
 
 ### Detect centroids (finger presses) and return list
 def cv_loop() -> list[Any]:
     global fps, frame_count, start_time
     ret, frame = capture.read()
+
+    block_size = cv2.getTrackbarPos("Block Size", "Controls")
+    block_size = make_odd(max(3, block_size))
+    C = cv2.getTrackbarPos("C", "Controls")
 
     if not ret:
         print("Failed to capture frame from camera. Exiting...")
@@ -213,6 +219,8 @@ def cv_loop() -> list[Any]:
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Compute absolute difference between the background and current frame
+    #circle_diff = cv2.adaptiveThreshold(gray_frame, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, block_size, C)
+    #circle 42/42
     diff = cv2.absdiff(bg, gray_frame)
 
     #Inner Rectangle (Sens ~24?) / Outer (Sens ~35)
@@ -225,10 +233,10 @@ def cv_loop() -> list[Any]:
     outie = cv2.bitwise_and(diff,cv2.bitwise_not(mask))
 
     # Different thresholds for the different sections
-    #_, threshI = cv2.threshold(innie, cv2.getTrackbarPos("ThreshI", "Controls"), 255, cv2.THRESH_BINARY)
-    #_, threshO = cv2.threshold(outie, cv2.getTrackbarPos("ThreshO", "Controls"), 255, cv2.THRESH_BINARY)
-    _, threshI = cv2.threshold(innie, 47, 255, cv2.THRESH_BINARY)
-    _, threshO = cv2.threshold(outie, 69, 255, cv2.THRESH_BINARY)
+    _, threshI = cv2.threshold(innie, cv2.getTrackbarPos("ThreshI", "Controls"), 255, cv2.THRESH_BINARY)
+    _, threshO = cv2.threshold(outie, cv2.getTrackbarPos("ThreshO", "Controls"), 255, cv2.THRESH_BINARY)
+    #_, threshI = cv2.threshold(innie, 47, 255, cv2.THRESH_BINARY)
+    #_, threshO = cv2.threshold(outie, 69, 255, cv2.THRESH_BINARY)
     thresh = cv2.add(threshI,threshO)
 
     # Use morphological operations to remove small noise
@@ -251,44 +259,40 @@ def cv_loop() -> list[Any]:
         hull = cv2.convexHull(cnt)
         hull_area = cv2.contourArea(hull)
         solidity = float(area) / hull_area if hull_area > 0 else 0
-        '''M = cv2.moments(cnt)
+        #if solidity > 0.8 and hull_area<1500 and hull_area > 100:
+        cv2.drawContours(frame, [hull], 0, (255, 255, 0), 2)
+        M = cv2.moments(cnt)
         if M["m00"] != 0:
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
-        txt = f"HArea:{hull_area:.2f}"
-        cv2.putText(frame, txt, (cX, cY),cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        '''
-        if solidity > 0.8 and hull_area<1500 and hull_area > 100:
-            cv2.drawContours(frame, [hull], 0, (255, 255, 0), 2)
-            M = cv2.moments(cnt)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                # Draw the centroid on the frame
-                centroids.append([cX, cY])
-                cv2.circle(frame, (cX, cY), 5, (0, 255, 255), -1)
+            # Draw the centroid on the frame
+            txt = "Solidity:" + str(solidity) 
+            txt2="Area: " + str(hull_area)
+            cv2.putText(frame, txt , (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+            cv2.putText(frame, txt2 , (cX, cY+40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+            centroids.append([cX, cY])
+            cv2.circle(frame, (cX, cY), 5, (0, 255, 255), -1)
+       
+        
+    '''circles = cv2.HoughCircles(
+    circle_diff,
+    cv2.HOUGH_GRADIENT,
+    dp=cv2.getTrackbarPos("dp", "Controls")/10, 
+    minDist=cv2.getTrackbarPos("minDist", "Controls"),
+    param1=cv2.getTrackbarPos("param1", "Controls"),
+    param2=cv2.getTrackbarPos("param2", "Controls") /10,   # Increase if detecting too many false positives
+    minRadius=cv2.getTrackbarPos("minRadius", "Controls"),
+    maxRadius=cv2.getTrackbarPos("maxRadius", "Controls")
+    )'''
 
-        '''x, y, w, h = cv2.boundingRect(cnt)
-        aspect_ratio = float(w) / h
-        #print(aspect_ratio)
-        if 0.6 < aspect_ratio < 0.95:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)  # green box, thickness 2
-        '''
-        
-        # Filter out very small/large contours (adjust the threshold as needed)
-        '''if CONTOUR_MIN_AREA < area and area < CONTOUR_MAX_AREA:
-            # Calculate moments for each contour
-            M = cv2.moments(cnt)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                # Draw the centroid on the frame
-                centroids.append([cX, cY])
-                cv2.circle(frame, (cX, cY), 5, (0, 0, 255), -1)
-                #txt = f"Area:{area:.2f}"
-                #cv2.putText(frame, txt, (cX, cY),cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-        '''
-        
+
+    # Draw circles if any were found
+    '''if circles is not None:
+        circles = np.round(circles[0, :]).astype("int")
+        for (x, y, r) in circles:
+            cv2.circle(frame, (x, y), r, (0, 155, 0), 2)   # outer circle
+            cv2.circle(frame, (x, y), 2, (0, 155, 0), 3)   # center dot'''
+
      # Calculate FPS every second
     current_time = time.time()  # Current time
     elapsed_time = current_time - start_time  # Time elapsed since the last FPS calculation
@@ -315,10 +319,10 @@ def cv_loop() -> list[Any]:
 
         # Perform weighted addition
         # Convert the single-channel image1 to a three-channel image
-        #t_colored = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
-        #overlayed_image = cv2.addWeighted(t_colored, ALPHA, frame, BETA, 0)
-        #cv2.imshow("Detected Centroids", overlayed_image)
-        cv2.imshow("Detected Centroids", frame)
+        t_colored = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+        overlayed_image = cv2.addWeighted(t_colored, ALPHA, frame, BETA, 0)
+        cv2.imshow("Detected Centroids", overlayed_image)
+        #cv2.imshow("Detected Centroids", thresh)
 
     if CFG_SHOW_BG_SUBTRACT:
         cv2.imshow("Foreground (Background Subtraction)", thresh)
@@ -350,7 +354,7 @@ def main() -> None:
     
     cv2.namedWindow("Controls", cv2.WND_PROP_FULLSCREEN)
     cv2.createTrackbar('Margin', "Controls", 10, min(height, width) // 2, update_contours)
-    cntrl = cv2.imread("control.png")
+    cntrl = cv2.imread("debug/control.png")
     cv2.imshow("Controls", cntrl)
 
     cv2.createTrackbar("ThreshI", "Controls", 0, 255, nothing)
@@ -361,6 +365,31 @@ def main() -> None:
     cv2.setTrackbarPos('ConMinArea', 'Controls', 35) 
     cv2.createTrackbar("CameraSet", "Controls", 0, 10, nothing)
     cv2.setTrackbarPos('CameraSet', 'Controls', 0) 
+
+    cv2.createTrackbar("Block Size", "Controls", 11, 50, nothing)
+    cv2.createTrackbar("C", "Controls", 1, 20, nothing)
+    cv2.createTrackbar("Lower Thresh", "Controls", 0, 255, nothing)
+    cv2.setTrackbarPos('Lower Thresh', 'Controls', 18)
+    cv2.setTrackbarPos('Block Size', 'Controls', 31)
+    cv2.setTrackbarPos('C', 'Controls', 5)
+
+    #CD threshlding - remove later
+    cv2.setTrackbarPos('ThreshI', 'Controls', 42) ##inner
+    cv2.setTrackbarPos('ThreshO', 'Controls', 42) ##outer
+   
+    ##Hough Circles Controls
+    cv2.createTrackbar("dp", "Controls", 10, 30, nothing)
+    cv2.createTrackbar("minDist", "Controls", 0, 255, nothing)
+    cv2.createTrackbar("param1", "Controls", 0, 1200, nothing)
+    cv2.createTrackbar("param2", "Controls", 1, 800, nothing)
+    cv2.createTrackbar("minRadius", "Controls", 0, 255, nothing)
+    cv2.createTrackbar("maxRadius", "Controls", 0, 255, nothing)
+    cv2.setTrackbarPos("dp", "Controls", 10)
+    cv2.setTrackbarPos("minDist", "Controls", 190)
+    cv2.setTrackbarPos("param1", "Controls", 352)
+    cv2.setTrackbarPos("param2", "Controls", 156)
+    cv2.setTrackbarPos("minRadius", "Controls", 124)
+    cv2.setTrackbarPos("maxRadius", "Controls", 150)
 
     while True:
         cv_loop()
