@@ -259,19 +259,21 @@ def cv_loop() -> list[Any]:
         hull = cv2.convexHull(cnt)
         hull_area = cv2.contourArea(hull)
         solidity = float(area) / hull_area if hull_area > 0 else 0
-        #if solidity > 0.8 and hull_area<1500 and hull_area > 100:
-        cv2.drawContours(frame, [hull], 0, (255, 255, 0), 2)
-        M = cv2.moments(cnt)
-        if M["m00"] != 0:
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
-            # Draw the centroid on the frame
-            txt = "Solidity:" + str(solidity) 
-            txt2="Area: " + str(hull_area)
-            cv2.putText(frame, txt , (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-            cv2.putText(frame, txt2 , (cX, cY+40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
-            centroids.append([cX, cY])
-            cv2.circle(frame, (cX, cY), 5, (0, 255, 255), -1)
+        if ((solidity > 0.8 and hull_area<1500 and hull_area > 100) 
+            or (solidity > .8 and hull_area<55000 and hull_area>40000)):
+
+            cv2.drawContours(frame, [hull], 0, (255, 255, 0), 2)
+            M = cv2.moments(cnt)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                # Draw the centroid on the frame
+                txt = "Solidity:" + str(solidity) 
+                txt2="Area: " + str(hull_area)
+                cv2.putText(frame, txt , (cX, cY), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+                cv2.putText(frame, txt2 , (cX, cY+40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+                centroids.append([cX, cY])
+                cv2.circle(frame, (cX, cY), 5, (0, 255, 255), -1)
        
         
     '''circles = cv2.HoughCircles(
@@ -319,10 +321,10 @@ def cv_loop() -> list[Any]:
 
         # Perform weighted addition
         # Convert the single-channel image1 to a three-channel image
-        t_colored = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
-        overlayed_image = cv2.addWeighted(t_colored, ALPHA, frame, BETA, 0)
-        cv2.imshow("Detected Centroids", overlayed_image)
-        #cv2.imshow("Detected Centroids", thresh)
+        #t_colored = cv2.cvtColor(thresh, cv2.COLOR_GRAY2BGR)
+        #overlayed_image = cv2.addWeighted(t_colored, ALPHA, frame, BETA, 0)
+        #cv2.imshow("Detected Centroids", overlayed_image)
+        cv2.imshow("Detected Centroids", frame)
 
     if CFG_SHOW_BG_SUBTRACT:
         cv2.imshow("Foreground (Background Subtraction)", thresh)
