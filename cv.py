@@ -322,7 +322,7 @@ def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> lis
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                centroids.append(Centroid(cX, cY, cnt))
+                centroids.append(Centroid(cX, cY, hull))
 
     return centroids
 
@@ -448,7 +448,7 @@ def main() -> None:
     global standalone
     standalone = True
 
-    cv_init(True, True)
+    cv_init(detect_fingers=True, detect_cds=False)
 
     while True:
         cv_loop()
