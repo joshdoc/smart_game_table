@@ -2,6 +2,12 @@ import pygame
 import random
 import sys
 import time
+from dataclasses import dataclass
+
+@dataclass
+class Velocity:
+    x: float
+    y: float
 
 # Constants
 SCREEN_WIDTH = 1400 
@@ -40,6 +46,7 @@ class Puck(pygame.sprite.Sprite):
         self.pos = pygame.math.Vector2(self.rect.topleft)
         self.direction = pygame.math.Vector2((-1,1))
         self.speed = pygame.math.Vector2((200,200))
+        self.velocity: Velocity = Velocity(0, 0)
         self.old_rect = self.rect.copy()
         self.obstacles = obstacles
 
@@ -60,23 +67,26 @@ class Puck(pygame.sprite.Sprite):
                     if self.rect.right >= sprite.rect.left and self.old_rect.right <= sprite.old_rect.left:
                         self.rect.right = sprite.rect.left
                         self.pos.x = self.rect.x
-                        if self.direction.x == 1:
+                        '''if self.direction.x == 1:
                             self.speed.x += SPEED_BUMP
                         else:
                             self.speed.x = slowdown(self.speed.x, SPEED_BUMP)
                         self.direction[0] = -self.direction[0]
-                        
+                        '''
+                        self.velocity.x = sprite.velocity.x / 2
+                        self.velocity.y = sprite.velocity.y / 2
 
 					# collision on the left
                     if self.rect.left <= sprite.rect.right and self.old_rect.left >= sprite.old_rect.right:
                         self.rect.left = sprite.rect.right
                         self.pos.x = self.rect.x
-                        
-                        if self.direction.x == 1:
+                        self.velocity.x = sprite.velocity.x / 2
+                        self.velocity.y = sprite.velocity.y / 2
+                        '''if self.direction.x == 1:
                             self.speed.x= slowdown(self.speed.x, SPEED_BUMP)
                         else:
                             self.speed.x+=SPEED_BUMP
-                        self.direction[0] = -self.direction[0]
+                        self.direction[0] = -self.direction[0]'''
                         #self.speed.x +=5
 		
             if direction == 'vertical':
@@ -85,44 +95,56 @@ class Puck(pygame.sprite.Sprite):
                     if self.rect.bottom >= sprite.rect.top and self.old_rect.bottom <= sprite.old_rect.top:
                         self.rect.bottom = sprite.rect.top
                         self.pos.y = self.rect.y
-                        if self.direction.y == 1:
+                        self.velocity.x = sprite.velocity.x / 2
+                        self.velocity.y = sprite.velocity.y / 2
+                        '''if self.direction.y == 1:
                             self.speed.y = slowdown(self.speed.x, SPEED_BUMP)
                         else:
                             self.speed.y+=SPEED_BUMP
-                        self.direction[1] = -self.direction[1]
+                        self.direction[1] = -self.direction[1]'''
                         #self.speed.y +=5
 
                   # collision on the top
                     if self.rect.top <= sprite.rect.bottom and self.old_rect.top >= sprite.old_rect.bottom:
                         self.rect.top = sprite.rect.bottom
                         self.pos.y = self.rect.y
-                        if self.direction.y == 1:
+                        self.velocity.x = sprite.velocity.x / 2
+                        self.velocity.y = sprite.velocity.y / 2
+                        '''if self.direction.y == 1:
                             self.speed.y +=SPEED_BUMP
                         else:
                             self.speed.y = slowdown(self.speed.x, SPEED_BUMP)
-                        self.direction[1] = -self.direction[1]
+                        self.direction[1] = -self.direction[1]'''
                         #self.speed.y +=5       
         
     def update(self,dt):
         self.old_rect = self.rect.copy() #previous frame
-        if self.direction.magnitude() != 0:
+        self.pos.x += self.velocity.x * dt
+        self.pos.y += self.velocity.y * dt
+        self.rect.x = round(self.pos.x)
+        self.rect.y = round(self.pos.y)
+        self.collision('horizontal')
+        self.collision('vertical')
+        
+
+        '''if self.direction.magnitude() != 0:
             self.direction = self.direction.normalize()
 
-        self.pos.x += self.direction.x * self.speed.x * dt
+        
         self.rect.x = round(self.pos.x)
         self.collision('horizontal')
-        self.pos.y += self.direction.y * self.speed.y * dt
+        self.pos.y += self.direction[1] * self.speed[1] * dt
         self.rect.y = round(self.pos.y)
-        self.collision('vertical')
+        self.collision('vertical')'''
         
         # Bounce off top and bottom
         if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
-            self.direction[1] = -self.direction[1]
+            self.velocity.y = -self.velocity.y / 4
         if self.rect.left <= 0 or self.rect.right >= SCREEN_WIDTH:
-            self.direction[0] = -self.direction[0]
+            self.velocity.x = -self.velocity.x/ 4
 
-        self.speed.x = slowdown(self.speed.x, PUCK_DECAY)
-        self.speed.y = slowdown(self.speed.y, PUCK_DECAY)
+        self.speed[0] = slowdown(self.speed[0], PUCK_DECAY)
+        self.speed[1] = slowdown(self.speed[1], PUCK_DECAY)
     
 class Paddle1(pygame.sprite.Sprite):
     def __init__(self, init_pos, groups):
@@ -133,7 +155,7 @@ class Paddle1(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=init_pos)
         self.radius = PADDLE_RADIUS
         self.mass = 60
-        self.velocity = pygame.math.Vector2((0,0))
+        self.velocity: Velocity = Velocity(0, 0)
 
     def update(self, dt):
         self.old_rect = self.rect.copy()
@@ -142,9 +164,11 @@ class Paddle1(pygame.sprite.Sprite):
         self.rect.center = new_pos
         # Calculate velocity based on position change
         if (dt>0):
-            self.velocity = [(new_pos[0] - old_pos[0])/dt, (new_pos[1] - old_pos[1])/dt]
+            self.velocity.x = (new_pos[0] - old_pos[0])/dt
+            self.velocity.y = (new_pos[1] - old_pos[1])/dt
         else:
-            self.velocity = (0,0)
+            self.velocity.x = 0
+            self.velocity.y = 0
 
 class Paddle2(pygame.sprite.Sprite):
     def __init__(self, init_pos, groups):
@@ -154,7 +178,7 @@ class Paddle2(pygame.sprite.Sprite):
         #self.image.fill(WHITE)
         self.rect = self.image.get_rect(topleft = init_pos)
         self.mass = 60
-        self.velocity = pygame.math.Vector2((0,0))
+        self.velocity: Velocity = Velocity(0, 0)
 
     def update(self, dt):
         self.old_rect = self.rect.copy()
@@ -162,7 +186,12 @@ class Paddle2(pygame.sprite.Sprite):
         new_pos = cv_loop()[1]
         self.rect.center = new_pos
         # Calculate velocity based on position change
-        self.velocity = [new_pos[0] - old_pos[0], new_pos[1] - old_pos[1]]
+        if (dt>0):
+            self.velocity.x = (new_pos[0] - old_pos[0])/dt
+            self.velocity.y = (new_pos[1] - old_pos[1])/dt
+        else:
+            self.velocity.x = 0
+            self.velocity.y = 0
 
 pygame.init()
 
@@ -174,7 +203,7 @@ all_sprites = pygame.sprite.Group()
 collision_sprites = pygame.sprite.Group()
 
 # Create sprite groups
-puck = Puck(30, (200,200), [all_sprites,collision_sprites], collision_sprites)
+puck = Puck(30, (200,200), [all_sprites], collision_sprites)
 player1 = Paddle1((PADDLE_RADIUS, SCREEN_HEIGHT // 2), [all_sprites,collision_sprites])
 player2 = Paddle2((SCREEN_WIDTH - PADDLE_RADIUS, SCREEN_HEIGHT // 2), [all_sprites,collision_sprites])
 
@@ -202,7 +231,7 @@ while True:
     all_sprites.draw(screen)
 
     # Render Player 1's velocity and display it
-    velocity_text = f"Paddle 1 Velocity: {player1.velocity[0]:.2f}, {player1.velocity[1]:.2f}"
+    velocity_text = f"Paddle 1 Velocity: {player1.velocity.x:.2f}, {player1.velocity.y:.2f}"
     velocity_surface = font.render(velocity_text, True, WHITE)
     screen.blit(velocity_surface, (10, 10))
 
@@ -215,6 +244,6 @@ while True:
     # Render the FPS text
     framerate_text = font.render(f"FPS: {framerate:.2f}", True, WHITE)
     screen.blit(framerate_text, (10, 900))
-    clock.tick(60)
+    clock.tick(30)
 
     pygame.display.update()
