@@ -79,13 +79,13 @@ TOP_LEFT_CORRECTION_FACTOR_Y: int = 10
 # Parameters for centroid detection
 HULL_MIN_SOLIDITY: float = 0.8
 
-FINGER_INNER_THRESHOLD: int = 47
-FINGER_OUTER_THRESHOLD: int = 69
+FINGER_INNER_THRESHOLD: int = 25#47
+FINGER_OUTER_THRESHOLD: int = 31#69
 FINGER_MIN_AREA: int = 100
 FINGER_MAX_AREA: int = 1500
 
-CD_INNER_THRESHOLD: int = 42
-CD_OUTER_THRESHOLD: int = 42
+CD_INNER_THRESHOLD: int = 26#35
+CD_OUTER_THRESHOLD: int = 29#42
 CD_MIN_AREA: int = 40000
 CD_MAX_AREA: int = 55000
 
@@ -283,10 +283,15 @@ def _trackbar_init() -> None:
     control_image = cv2.imread("debug/control.png")
     cv2.imshow("Controls", control_image)
 
-    cv2.createTrackbar("ThreshI", "Controls", 0, 255, _nothing)
-    cv2.setTrackbarPos("ThreshI", "Controls", 47)  # inner
-    cv2.createTrackbar("ThreshO", "Controls", 0, 255, _nothing)
-    cv2.setTrackbarPos("ThreshO", "Controls", 69)  # outer
+    cv2.createTrackbar("ThreshFingerI", "Controls", 0, 255, _nothing)
+    cv2.setTrackbarPos("ThreshFingerI", "Controls", 47)  # inner
+    cv2.createTrackbar("ThreshFingerO", "Controls", 0, 255, _nothing)
+    cv2.setTrackbarPos("ThreshFingerO", "Controls", 69)  # outer
+
+    cv2.createTrackbar("ThreshIcd", "Controls", 0, 255, _nothing)
+    cv2.setTrackbarPos("ThreshIcd", "Controls", 42)  # inner
+    cv2.createTrackbar("ThreshOcd", "Controls", 0, 255, _nothing)
+    cv2.setTrackbarPos("ThreshOcd", "Controls", 42)  # outer
 
 
 def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
@@ -300,8 +305,8 @@ def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
 
     # Different thresholds for the different sections
     if CFG_USE_TRACKBARS:
-        inner_thresh = cv2.getTrackbarPos("ThreshI", "Controls")
-        outer_thresh = cv2.getTrackbarPos("ThreshO", "Controls")
+        inner_thresh = cv2.getTrackbarPos("ThreshFingerI", "Controls")
+        outer_thresh = cv2.getTrackbarPos("ThreshFingerO", "Controls")
 
     _, threshI = cv2.threshold(inner, inner_thresh, 255, cv2.THRESH_BINARY)
     _, threshO = cv2.threshold(outer, outer_thresh, 255, cv2.THRESH_BINARY)
@@ -351,6 +356,10 @@ def _run_detection(img: np.ndarray, params: DetectionParameters) -> list[Centroi
     contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     # Loop over the contours to detect and draw centroids
     centroids = _detect_centroids(contours, params.min_area, params.max_area)
+
+    '''cv2.namedWindow("Thresh", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("Thresh", cv2.WND_PROP_FULLSCREEN, 1)
+    cv2.imshow("Thresh", thresh)'''
 
     return centroids
 
@@ -456,7 +465,8 @@ def main() -> None:
     global standalone
     standalone = True
 
-    cv_init(detect_fingers=True, detect_cds=False)
+
+    cv_init(detect_fingers=True, detect_cds=True)
 
     while True:
         cv_loop()
