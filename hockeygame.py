@@ -1,9 +1,6 @@
 import pygame
-import sys
 import random
-
-#from cv import cv_init, cv_loop, update_contours, nothing
-from cv import *
+import sys
 
 # Initialize Pygame
 pygame.init()
@@ -20,18 +17,53 @@ PADDLE_RADIUS = 30
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Air Hockey")
 
-# Position and velocity variables
-puck_pos = [SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2]
-puck_vel = [random.choice([-4, 4]), random.choice([-4, 4])]
+class Puck(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.Surface((PUCK_RADIUS * 2, PUCK_RADIUS * 2), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, WHITE, (PUCK_RADIUS, PUCK_RADIUS), PUCK_RADIUS)
+        self.rect = self.image.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        self.velocity = [random.choice([-4, 4]), random.choice([-4, 4])]
+        self.mask = pygame.mask.from_surface(self.image)
+        
+    def update(self):
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
 
-# Initialize player positions
-player1_pos = [PADDLE_RADIUS, SCREEN_HEIGHT // 2]
-player2_pos = [SCREEN_WIDTH - PADDLE_RADIUS, SCREEN_HEIGHT // 2]
+        # Bounce off top and bottom
+        if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
+            self.velocity[1] = -self.velocity[1]
+        
+class Paddle(pygame.sprite.Sprite):
+    def __init__(self, init_pos):
+        super().__init__()
+        self.image = pygame.Surface((PADDLE_RADIUS * 2, PADDLE_RADIUS * 2), pygame.SRCALPHA)
+        pygame.draw.circle(self.image, WHITE, (PADDLE_RADIUS, PADDLE_RADIUS), PADDLE_RADIUS)
+        self.rect = self.image.get_rect(center=init_pos)
+        self.mask = pygame.mask.from_surface(self.image)
 
-score1 = 0
-score2 = 0
+    def update_position(self, new_pos):
+        old_pos = self.rect.center
+        self.rect.center = new_pos
+        # Calculate velocity based on position change
+        self.velocity = [new_pos[0] - old_pos[0], new_pos[1] - old_pos[1]]
 
-cv_init()
+# Create sprite groups
+puck = Puck()
+player1 = Paddle((PADDLE_RADIUS, SCREEN_HEIGHT // 2))
+player2 = Paddle((SCREEN_WIDTH - PADDLE_RADIUS, SCREEN_HEIGHT // 2))
+
+all_sprites = pygame.sprite.Group(puck, player1, player2)
+
+# Simulated function for obtaining player positions
+def cv_loop():
+    """Simulate the cv_loop function to return random centroid positions."""
+    # Replace this logic with actual centroid detection logic
+    # Just for demonstration purposes
+    x, y = pygame.mouse.get_pos()
+    player1 =  [x, y]
+    player2 = [SCREEN_WIDTH - PADDLE_RADIUS, random.randint(PADDLE_RADIUS, SCREEN_HEIGHT - PADDLE_RADIUS)]
+    return player1, player2
 
 # Function to clamp paddle positions within screen boundaries
 def clamp_paddle(pos):
@@ -40,6 +72,10 @@ def clamp_paddle(pos):
 
 # Main game loop
 running = True
+
+# Font for displaying text
+font = pygame.font.SysFont("Arial", 24)
+
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -47,54 +83,39 @@ while running:
 
     # Get the positions of the paddles from the cv_loop function
     player1_pos, player2_pos = cv_loop()
+    player1.update_position(player1_pos)
+    player2.update_position(player2_pos)
 
-    # Ensure paddles stay on the screen
-    clamp_paddle(player1_pos)
-    clamp_paddle(player2_pos)
-
+  
     # Update puck position
-    puck_pos[0] += puck_vel[0]
-    puck_pos[1] += puck_vel[1]
+    puck.update()
 
-    # Wall collision (top and bottom)
-    if puck_pos[1] <= PUCK_RADIUS or puck_pos[1] >= SCREEN_HEIGHT - PUCK_RADIUS:
-        puck_vel[1] = -puck_vel[1]
-
-    # Scoring
-    if puck_pos[0] <= PUCK_RADIUS:
-        score2 += 1
-        puck_pos = [SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2]
-        puck_vel = [random.choice([-4, 4]), random.choice([-4, 4])]
-    elif puck_pos[0] >= SCREEN_WIDTH - PUCK_RADIUS:
-        score1 += 1
-        puck_pos = [SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2]
-        puck_vel = [random.choice([-4, 4]), random.choice([-4, 4])]
-
-    # Paddle collision
-    for paddle_pos in [player1_pos, player2_pos]:
-        dist = ((puck_pos[0] - paddle_pos[0]) ** 2 + (puck_pos[1] - paddle_pos[1]) ** 2) ** 0.5
-        if dist <= PUCK_RADIUS + PADDLE_RADIUS:
-            norm = [puck_pos[0] - paddle_pos[0], puck_pos[1] - paddle_pos[1]]
-            norm_magnitude = (norm[0] ** 2 + norm[1] ** 2) ** 0.5
-            norm = [norm[0] / norm_magnitude, norm[1] / norm_magnitude]
-            relative_velocity = puck_vel[0] * norm[0] + puck_vel[1] * norm[1]
-            puck_vel[0] -= 2 * relative_velocity * norm[0]
-            puck_vel[1] -= 2 * relative_velocity * norm[1]
-
-    # Drawing
+    # Check for collisions using sprite masks
+    if pygame.sprite.collide_circle(puck, player1) or pygame.sprite.collide_circle(puck, player2):
+        puck.velocity[0] = -puck.velocity[0]
+    
+    # Check for scoring (left and right)
+    if puck.rect.left <= 0 or puck.rect.right >= SCREEN_WIDTH:
+        # Reset puck position and velocity
+        puck.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+        puck.velocity = [random.choice([-4, 4]), random.choice([-4, 4])]
+        
+    # Clear screen
     screen.fill(BLACK)
-    pygame.draw.circle(screen, WHITE, puck_pos, PUCK_RADIUS)
-    pygame.draw.circle(screen, WHITE, player1_pos, PADDLE_RADIUS)
-    pygame.draw.circle(screen, WHITE, player2_pos, PADDLE_RADIUS)
 
-    # Display scores
-    font = pygame.font.Font(None, 74)
-    score_text = font.render(f"{score1} : {score2}", True, WHITE)
-    screen.blit(score_text, (SCREEN_WIDTH // 2 - 50, 10))
+    # Render Player 1's velocity and display it
+    velocity_text = f"Velocity: {player1.velocity[0]}, {player1.velocity[1]}"
+    velocity_surface = font.render(velocity_text, True, WHITE)
+    screen.blit(velocity_surface, (10, 10))
+    '''score_text = font.render(f"{score1} : {score2}", True, WHITE)
+    screen.blit(score_text, (SCREEN_WIDTH // 2 - 50, 10))'''
+    
+    # Draw all sprites
+    all_sprites.draw(screen)
 
     # Update display
-    pygame.display.flip()
-    pygame.time.Clock().tick(60)
+    pygame.display.update()
+    pygame.time.Clock().tick(30)
 
 pygame.quit()
 sys.exit()
