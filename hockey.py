@@ -127,15 +127,15 @@ class Puck(pygame.sprite.Sprite):
 
     def update(self, dt: float) -> None:
         self.prev_rect = self.rect.copy()
+
+        self.rect.x += int(self.velocity.x * dt)
+        self.rect.y += int(self.velocity.y * dt)
         
         self._collision()
         self._bounds_check()
 
         self.velocity.x *= FRICTION
         self.velocity.y *= FRICTION
-
-        self.rect.x += int(self.velocity.x * dt)
-        self.rect.y += int(self.velocity.y * dt)
 
 
 class Paddle(pygame.sprite.Sprite):

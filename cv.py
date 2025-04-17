@@ -21,6 +21,7 @@ from typing import Any
 
 import cv2
 import numpy as np
+import math
 
 ####################################################################################################
 # Types                                                                                            #
@@ -76,6 +77,10 @@ CUT_TOP = -10
 TOP_LEFT_CORRECTION_FACTOR_X: int = 10
 TOP_LEFT_CORRECTION_FACTOR_Y: int = 10
 
+#Number of tangibles expected 
+## 2 for air hockey
+N_TANGIBLES=2
+
 # Parameters for centroid detection
 HULL_MIN_SOLIDITY: float = 0.8
 
@@ -84,10 +89,10 @@ FINGER_OUTER_THRESHOLD: int = 31#69
 FINGER_MIN_AREA: int = 100
 FINGER_MAX_AREA: int = 1500
 
-CD_INNER_THRESHOLD: int = 26#35
+CD_INNER_THRESHOLD: int = 24#35
 CD_OUTER_THRESHOLD: int = 29#42
 CD_MIN_AREA: int = 40000
-CD_MAX_AREA: int = 55000
+CD_MAX_AREA: int = 60000
 
 FINGER_PARAMS = DetectionParameters(
     FINGER_INNER_THRESHOLD, FINGER_OUTER_THRESHOLD, FINGER_MIN_AREA, FINGER_MAX_AREA, False
@@ -335,6 +340,7 @@ def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> lis
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
                 cX, cY = _top_left_corner_correction(cX, cY)
+                
                 centroids.append(Centroid(cX, cY, hull))
 
     return centroids
@@ -362,6 +368,29 @@ def _run_detection(img: np.ndarray, params: DetectionParameters) -> list[Centroi
     cv2.imshow("Thresh", thresh)'''
 
     return centroids
+
+def _distance(x1, y1, x2, y2):
+    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+lastPos=[]
+def _idCD(cds:list[Centroid]) -> DetectedCentroids:
+    global lastPos
+    newCDlist =  [Centroid for _ in range(N_TANGIBLES)]
+    for cd in cds:
+        correctPosition=9 #placeholder max values
+        maxDist = 99999999 #placeholder max values
+        if(len(lastPos)<N_TANGIBLES):
+            #time.sleep(2)
+            lastPos.append( (cd.xpos,cd.ypos) )
+        for i in range(len(lastPos)):
+            d = _distance(lastPos[i][0], lastPos[i][1], cd.xpos, cd.ypos)
+            if d < maxDist :
+                correctPosition=i
+                maxDist = d
+        print("CorrectPos",correctPosition)
+        newCDlist[correctPosition] = cd
+        lastPos[correctPosition] = (cd.xpos, cd.ypos)
+    return newCDlist
 
 
 ####################################################################################################
@@ -395,6 +424,7 @@ def cv_init(detect_fingers: bool = True, detect_cds: bool = True) -> None:
 ### Detect centroids (finger presses) and return list
 def cv_loop() -> DetectedCentroids:
     global fps, frame_count, start_time
+
     ret, frame = capture.read()
 
     retVal = DetectedCentroids([], [])
@@ -413,6 +443,9 @@ def cv_loop() -> DetectedCentroids:
 
     retVal.fingers = _run_detection(diff, FINGER_PARAMS)
     retVal.cds = _run_detection(diff, CD_PARAMS)
+    if len(retVal.cds) == N_TANGIBLES:
+        retVal.cds = _idCD(retVal.cds)
+
 
     frame_count += 1
     current_time = time.time()
@@ -434,10 +467,24 @@ def cv_loop() -> DetectedCentroids:
         for centroid in retVal.fingers:
             cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 255, 0), 2)
             cv2.circle(frame, (centroid.xpos, centroid.ypos), 5, (0, 255, 255), -1)
+        centroidNum=0
         for centroid in retVal.cds:
+            cv2.circle(frame, (centroid.xpos, centroid.ypos), 5, (0, 0, 255), -1)
+            if centroidNum==0:
+                cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 0, 255), 2)
+            elif centroidNum==1:
+                cv2.drawContours(frame, [centroid.contour_hull], 0, (0, 255, 255), 2)
+            else:
+                cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 0, 0), 2)
+            centroidNum+=1
+            txt = "Hull Area: " + str(cv2.contourArea(centroid.contour_hull)) 
+            #cv2.putText(frame,txt,(centroid.xpos,centroid.ypos),cv2.FONT_HERSHEY_SIMPLEX,1,(255,0,255),2)
+        '''for centroid in retVal.cds:
             cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 0, 255), 2)
             cv2.circle(frame, (centroid.xpos, centroid.ypos), 5, (0, 255, 255), -1)
-
+            txt = "Hull Area: " + str(cv2.contourArea(centroid.contour_hull)) 
+            #cv2.putText(frame,txt,(centroid.xpos,centroid.ypos),cv2.FONT_HERSHEY_SIMPLEX,1,(255,0,255),2)
+            '''
     # Display original frame with detected centroids and the threshold image
     if standalone or CFG_SHOW_FRAME:
         cv2.namedWindow("Detected Centroids", cv2.WINDOW_NORMAL)
