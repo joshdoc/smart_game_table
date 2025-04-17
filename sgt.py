@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from types import ModuleType
-from typing import Callable
+from typing import Callable, Optional
 
 import cv
 from sgt_types import Loop_Result_t
@@ -55,12 +55,13 @@ class Game:
     game_type: Game_t
     high_score: int = field(init=False)
     init: Callable[[], None] = field(init=False)
-    loop: Callable[[cv.DetectedCentroids, float], bool] = field(init=False)
+    loop: Callable[[cv.DetectedCentroids, float], Loop_Result_t] = field(init=False)
     # return type depends on game type
-    deinit: Callable[[], int | str | None] = field(init=False)
+    deinit: Callable[[], Optional[int | str]] = field(init=False)
     _module: ModuleType = field(init=False)
 
     def __post_init__(self):
+        # import the module
         self._module = importlib.import_module(self.name)
 
         try:
@@ -70,6 +71,7 @@ class Game:
         except AttributeError as e:
             raise ImportError("Module '{}' must define 'loop'".format(self.name)) from e
 
+        # High score tracking
         self.high_score = 0
         try:
             with open(".{}".format(self.name), "r") as f:
@@ -79,6 +81,14 @@ class Game:
             print("Error: File '.{}' not found.".format(self.name))
         except ValueError:
             print("Error: File '.{}' does not contain a valid integer.".format(self.name))
+
+    def update_high_score(self, score: int) -> None:
+        self.high_score = score
+        try:
+            with open(f".{self.name}", "w") as f:
+                f.write(str(score))
+        except Exception as e:
+            print(f"Error writing high score for '{self.name}': {e}")
 
 
 ####################################################################################################
@@ -119,7 +129,7 @@ def main() -> None:
     dt: float = 0
     prev_time = time.time()
     loop_result: Loop_Result_t = Loop_Result_t.CONTINUE
-    game_result: int | str | None = None
+    game_result: Optional[int | str] = None
     invalid_game_result: bool = False
 
     cv.cv_init(detect_fingers=True, detect_cds=True)
@@ -142,7 +152,7 @@ def main() -> None:
 
             if cur_game.game_type == Game_t.SCORED:
                 if type(game_result) is int and game_result > cur_game.high_score:
-                    cur_game.high_score = game_result
+                    cur_game.update_high_score(game_result)
                 else:
                     invalid_game_result = True
 
