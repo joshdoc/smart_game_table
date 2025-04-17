@@ -22,22 +22,11 @@ from typing import Any
 import cv2
 import numpy as np
 
+from sgt_types import Centroid, DetectedCentroids
+
 ####################################################################################################
 # Types                                                                                            #
 ####################################################################################################
-
-
-@dataclass
-class Centroid:
-    xpos: int
-    ypos: int
-    contour_hull: np.ndarray
-
-
-@dataclass
-class DetectedCentroids:
-    fingers: list[Centroid]
-    cds: list[Centroid]
 
 
 @dataclass
@@ -145,10 +134,6 @@ start_time = time.time()
 def _update_contours(margin):
     global current_margin
     current_margin = margin
-
-
-def _nothing(_):
-    pass
 
 
 ####################################################################################################
@@ -283,9 +268,9 @@ def _trackbar_init() -> None:
     control_image = cv2.imread("debug/control.png")
     cv2.imshow("Controls", control_image)
 
-    cv2.createTrackbar("ThreshI", "Controls", 0, 255, _nothing)
+    cv2.createTrackbar("ThreshI", "Controls", 0, 255, lambda: None)
     cv2.setTrackbarPos("ThreshI", "Controls", 47)  # inner
-    cv2.createTrackbar("ThreshO", "Controls", 0, 255, _nothing)
+    cv2.createTrackbar("ThreshO", "Controls", 0, 255, lambda: None)
     cv2.setTrackbarPos("ThreshO", "Controls", 69)  # outer
 
 
@@ -309,11 +294,13 @@ def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
     thresh = cv2.add(threshI, threshO)
     return thresh
 
+
 def _top_left_corner_correction(x: int, y: int) -> tuple[int, int]:
     if x < 200 and y < 200:
         x -= 10
         y -= 10
     return x, y
+
 
 def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> list[Any]:
     centroids: list[Centroid] = []
@@ -388,7 +375,7 @@ def cv_loop() -> DetectedCentroids:
     global fps, frame_count, start_time
     ret, frame = capture.read()
 
-    retVal = DetectedCentroids([], [])
+    retVal = DetectedCentroids([], [], False)
 
     if not ret:
         print("Error: Could not read frame.")
