@@ -61,15 +61,15 @@ TARGET = [(0, 0), (WIDTH, 0), (WIDTH, HEIGHT), (0, HEIGHT)]
 CUT_LOW = 15
 CUT_RIGHT = -10
 CUT_LEFT = -10
-CUT_TOP = -10
+CUT_TOP = -10-15
 TOP_LEFT_CORRECTION_FACTOR_X: int = 10
 TOP_LEFT_CORRECTION_FACTOR_Y: int = 10
 
 # Parameters for centroid detection
 HULL_MIN_SOLIDITY: float = 0.8
 
-FINGER_INNER_THRESHOLD: int = 47
-FINGER_OUTER_THRESHOLD: int = 69
+FINGER_INNER_THRESHOLD: int = 36
+FINGER_OUTER_THRESHOLD: int = 42
 FINGER_MIN_AREA: int = 100
 FINGER_MAX_AREA: int = 1500
 
@@ -185,6 +185,7 @@ def _crop_bg(frame: np.ndarray) -> None:
         corners = _reorder_corners(corners)
 
     if CFG_SHOW_INITIAL_BG:
+    
         cv2.imshow("frame", frame)
         cv2.waitKey(2000)
 
@@ -299,6 +300,8 @@ def _top_left_corner_correction(x: int, y: int) -> tuple[int, int]:
     if x < 200 and y < 200:
         x -= 10
         y -= 10
+    elif x < 800 and y < 200:
+        x-=10
     return x, y
 
 

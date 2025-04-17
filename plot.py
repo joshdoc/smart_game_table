@@ -20,12 +20,15 @@ def assign_modes_fixed(group):
 df_labeled = df.groupby("UserID", group_keys=False).apply(assign_modes_fixed)
 
 # === Step 3: Compute mean tap times per circle radius and mode ===
-summary = df_labeled.groupby(["CircleRadius", "Mode"])["MeanTapTime"].mean().unstack()
+#summary = df_labeled.groupby(["CircleRadius", "Mode"])["MeanTapTime"].mean().unstack()
+summary = df_labeled.groupby(["CircleRadius", "Mode"])["MissClicks"].mean().unstack()
+
+
 
 # === Step 4: Plot single bar chart ===
 plt.figure(figsize=(12, 6))
 summary.plot(kind="bar", ax=plt.gca())
-plt.title("Average Tap Time by Circle Radius and Input Mode")
+plt.title("Mean misclicks")
 plt.xlabel("Circle Radius")
 plt.ylabel("Average Tap Time (s)")
 plt.xticks(rotation=0)
