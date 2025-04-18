@@ -47,10 +47,6 @@ def loop(centroids: DetectedCentroids, _) -> Loop_Result_t:
             _selected_game = None
             retVal = Loop_Result_t.EXIT
 
-    if centroids.escape:
-        _selected_game = None
-        retVal = Loop_Result_t.EXIT
-
     for centroid in centroids.fingers:
         for rect, game in _menu_items:
             if rect.collidepoint((centroid.xpos, centroid.ypos)):
