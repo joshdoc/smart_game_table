@@ -58,7 +58,7 @@ VELOCITY_SCALE = 2
 FRICTION = 0.99
 
 GOAL_POST_WIDTH = 10
-GOAL_POST_LEN = 400
+GOAL_POST_LEN = 250
 
 ####################################################################################################
 # GLOBALS                                                                                          #
@@ -68,6 +68,9 @@ all_sprites = pygame.sprite.Group()
 collision_sprites = pygame.sprite.Group()
 clock = pygame.time.Clock()
 prev_time = time.time()
+scored = False
+score_p1 = 0
+score_p2 = 0
 
 ####################################################################################################
 # CLASSES                                                                                          #
@@ -88,7 +91,6 @@ class GoalSlot(pygame.sprite.Sprite):
         self.prev_rect: self.rect
     def update():
         pass
-
 
 class Puck(pygame.sprite.Sprite):
     def __init__(
@@ -112,10 +114,15 @@ class Puck(pygame.sprite.Sprite):
         self.velocity: Vector = Vector(0, 0)
 
     def _collision(self) -> None:
+        global scored, score_p1, score_p2
         collision_sprites = pygame.sprite.spritecollide(self, self.obstacles, False)
         for sprite in collision_sprites:
             if (isinstance(sprite, GoalSlot)):
-                print("Score!")
+                scored = True
+                if sprite.ID == 0:
+                    score_p1 +=1 
+                else:
+                    score_p2 +=1
                 continue
             if (
                 self.rect.right >= sprite.rect.left
@@ -161,12 +168,21 @@ class Puck(pygame.sprite.Sprite):
             self.velocity.y = -self.velocity.y
 
     def update(self, dt: float) -> None:
+        global scored
+
         self.prev_rect = self.rect.copy()
 
         self.rect.x += int(self.velocity.x * dt)
         self.rect.y += int(self.velocity.y * dt)
 
         self._collision()
+        if scored:
+            self.rect.x = SCREEN_WIDTH // 2
+            self.rect.y = SCREEN_HEIGHT//2
+            self.velocity.x = 0
+            self.velocity.y = 0
+            scored = False
+
         self._bounds_check()
 
         self.velocity.x *= FRICTION
@@ -231,6 +247,13 @@ def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
     if centroids.escape:
         retVal = Loop_Result_t.EXIT
 
+    if len(centroids.cds) != 2:
+        txt = font.render("GAME PAUSE", True, WHITE) ##TODO - outline?
+        screen.blit(txt, (290, 899))
+        pygame.display.flip()
+        return Loop_Result_t.CONTINUE
+
+
     screen.fill(BLACK)
     puck.update(dt)
 
@@ -249,11 +272,15 @@ def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
     velocity_surface = font.render(velocity_text, True, WHITE)
     screen.blit(velocity_surface, (10, 36))
 
+    score_text= f"{score_p1}:{score_p2}"
+    score_surface = font.render(score_text, True, WHITE)
+    screen.blit(score_surface, (SCREEN_WIDTH//2-36, 36))
+
     framerate = clock.get_fps()
     framerate_text = font.render(f"FPS: {framerate:.2f}", True, WHITE)
     screen.blit(framerate_text, (10, 900))
-    clock.tick(30)
 
+    clock.tick(30)
     pygame.display.update()
 
     return retVal

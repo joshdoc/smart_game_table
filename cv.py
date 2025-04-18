@@ -116,7 +116,7 @@ CFG_SHOW_FPS: bool = True
 # Use the trackbars for settings
 CFG_USE_TRACKBARS: bool = False
 # draw the contours on the frame
-CFG_SHOW_CENTROIDS: bool = True
+CFG_SHOW_CENTROIDS: bool = False
 # Show the thresholded frame
 CFG_SHOW_THRESH: bool = False
 # Draw the detected hulls
