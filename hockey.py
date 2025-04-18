@@ -6,7 +6,7 @@
 ####################################################################################################
 
 ####################################################################################################
-# Imports                                                                                          #
+# IMPORTS                                                                                          #
 ####################################################################################################
 
 
@@ -18,10 +18,10 @@ import numpy as np
 import pygame
 
 import cv
-from sgt_types import DetectedCentroids, Centroid, Loop_Result_t
+from sgt_types import Centroid, DetectedCentroids, Loop_Result_t
 
 ####################################################################################################
-# Types                                                                                            #
+# TYPES                                                                                            #
 ####################################################################################################
 
 
@@ -40,7 +40,7 @@ class Vector:
 
 
 ####################################################################################################
-# Constants                                                                                        #
+# CONSTANTS                                                                                        #
 ####################################################################################################
 
 
@@ -49,16 +49,16 @@ SCREEN_HEIGHT = 1050
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-BLUE = (255,0,0)
+BLUE = (255, 0, 0)
 
-PUCK_RADIUS = 15*2
+PUCK_RADIUS = 15 * 2
 PADDLE_RADIUS = 130
 
 VELOCITY_SCALE = 2
 FRICTION = 0.99
 
 ####################################################################################################
-# Globals                                                                                          #
+# GLOBALS                                                                                          #
 ####################################################################################################
 
 all_sprites = pygame.sprite.Group()
@@ -67,7 +67,7 @@ clock = pygame.time.Clock()
 prev_time = time.time()
 
 ####################################################################################################
-# Classes                                                                                          #
+# CLASSES                                                                                          #
 ####################################################################################################
 
 
@@ -95,13 +95,25 @@ class Puck(pygame.sprite.Sprite):
     def _collision(self) -> None:
         collision_sprites = pygame.sprite.spritecollide(self, self.obstacles, False)
         for sprite in collision_sprites:
-            if self.rect.right >= sprite.rect.left and self.prev_rect.right <= sprite.prev_rect.left:
+            if (
+                self.rect.right >= sprite.rect.left
+                and self.prev_rect.right <= sprite.prev_rect.left
+            ):
                 self.rect.right = sprite.rect.left
-            if self.rect.left <= sprite.rect.right and self.prev_rect.left >= sprite.prev_rect.right:
+            if (
+                self.rect.left <= sprite.rect.right
+                and self.prev_rect.left >= sprite.prev_rect.right
+            ):
                 self.rect.left = sprite.rect.right
-            if self.rect.bottom >= sprite.rect.top and self.prev_rect.bottom <= sprite.prev_rect.top:
+            if (
+                self.rect.bottom >= sprite.rect.top
+                and self.prev_rect.bottom <= sprite.prev_rect.top
+            ):
                 self.rect.bottom = sprite.rect.top
-            if self.rect.top <= sprite.rect.bottom and self.prev_rect.top >= sprite.prev_rect.bottom:
+            if (
+                self.rect.top <= sprite.rect.bottom
+                and self.prev_rect.top >= sprite.prev_rect.bottom
+            ):
                 self.rect.top = sprite.rect.bottom
 
             self.velocity.x = sprite.velocity.x / VELOCITY_SCALE
@@ -131,7 +143,7 @@ class Puck(pygame.sprite.Sprite):
 
         self.rect.x += int(self.velocity.x * dt)
         self.rect.y += int(self.velocity.y * dt)
-        
+
         self._collision()
         self._bounds_check()
 
@@ -166,15 +178,15 @@ class Paddle(pygame.sprite.Sprite):
 
 
 ####################################################################################################
-# Public Functions                                                                                 #
+# GLOBAL FUNCTIONS                                                                                 #
 ####################################################################################################
 
 
-def init(_) -> None:
+def init(_=None) -> None:
     global screen, font, puck, player1, player2
 
     pygame.init()
-    
+
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     font = pygame.font.SysFont("Arial", 24)
 
@@ -185,13 +197,15 @@ def init(_) -> None:
     )
 
 
-def loop(centroids: DetectedCentroids, dt: float) -> None:
-    global prev_time
+def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
+    retVal = Loop_Result_t.CONTINUE
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            pygame.quit()
-            exit()
+            retVal = Loop_Result_t.EXIT
+
+    if centroids.escape:
+        retVal = Loop_Result_t.EXIT
 
     screen.fill(BLACK)
     puck.update(dt)
@@ -218,12 +232,15 @@ def loop(centroids: DetectedCentroids, dt: float) -> None:
 
     pygame.display.update()
 
+    return retVal
+
+
 def deinit() -> None:
     pygame.quit()
 
 
 ####################################################################################################
-# Main                                                                                             #
+# MAIN                                                                                             #
 ####################################################################################################
 
 
@@ -232,12 +249,18 @@ def main() -> None:
     init()
 
     loop_res: Loop_Result_t = Loop_Result_t.CONTINUE
+    prev_time = time.time()
 
     while loop_res == Loop_Result_t.CONTINUE:
         centroids = cv.cv_loop()
-        loop_res = loop()
-    
+
+        dt = time.time() - prev_time
+        prev_time = time.time()
+
+        loop_res = loop(centroids, dt)
+
     deinit()
+
 
 if __name__ == "__main__":
     main()

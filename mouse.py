@@ -73,9 +73,10 @@ def loop(centroids: cv.DetectedCentroids, _=None) -> Loop_Result_t:
 
 def main():
     cv.cv_init()
-    while True:
+    loop_res: Loop_Result_t = Loop_Result_t.CONTINUE
+    while loop_res == Loop_Result_t.CONTINUE:
         centroids = cv.cv_loop()
-        loop(centroids)
+        loop_res = loop(centroids)
 
 
 if __name__ == "__main__":

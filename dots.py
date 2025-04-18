@@ -1,3 +1,14 @@
+####################################################################################################
+# CV.py | Authors: mcprisk, dcalco, joshdoc, neelnv                                                #
+#                                                                                                  #
+# This file runs the user test game for a set duration and dot size without collecting any data.   #
+#                                                                                                  #
+####################################################################################################
+
+####################################################################################################
+# IMPORTS                                                                                          #
+####################################################################################################
+
 import math
 import random
 import time
@@ -8,7 +19,11 @@ import pygame
 import cv
 from sgt_types import DetectedCentroids, Loop_Result_t
 
-# Game settings
+####################################################################################################
+# CONSTANTS                                                                                        #
+####################################################################################################
+
+
 WIDTH, HEIGHT = 1400, 1050
 TARGET_SPAWN_RATE = 0.3
 
@@ -23,9 +38,19 @@ CENTROID_RADIUS = 15
 TARGET_SPACING = TARGET_RADIUS * 2
 GAME_DURATION = 30
 
-# Game variables
+
+####################################################################################################
+# GLOBALS                                                                                          #
+####################################################################################################
+
+
 targets = []  # List of targets
 score = 0
+
+
+####################################################################################################
+# LOCAL FUNCTIONS                                                                                  #
+####################################################################################################
 
 
 # Function to calculate distance between two points
@@ -33,7 +58,12 @@ def _distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
 
-def init(_):
+####################################################################################################
+# GLOBAL FUNCTIONS                                                                                 #
+####################################################################################################
+
+
+def init(_=None):
     global clock, screen, font
     pygame.init()
 
@@ -42,8 +72,9 @@ def init(_):
     screen = pygame.display.set_mode((1400, 1050))
     pygame.display.set_caption("Tap the Target Game")
 
-
     font = pygame.font.SysFont("Arial", 24)
+
+
 last_spawn_time = time.time()
 start_time = time.time()
 
@@ -117,6 +148,11 @@ def deinit() -> int:
     return score
 
 
+####################################################################################################
+# MAIN                                                                                             #
+####################################################################################################
+
+
 def main() -> None:
     cv.cv_init(detect_fingers=True, detect_cds=False)
     init()
@@ -126,7 +162,7 @@ def main() -> None:
     while loop_res == Loop_Result_t.CONTINUE:
         centroids: DetectedCentroids = cv.cv_loop()
         loop_res = loop(centroids)
-    
+
     deinit()
 
 

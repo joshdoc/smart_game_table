@@ -40,7 +40,7 @@ from sgt_types import Game, Game_t, Loop_Result_t
 
 
 MENU = Game(name="menu", game_type=Game_t.MENU)
-#UNDERTABLE = Game(name="undertable", game_type=Game_t.SCORED)
+# UNDERTABLE = Game(name="undertable", game_type=Game_t.SCORED)
 HOCKEY = Game(name="hockey", game_type=Game_t.UNSCORED)
 DOTS = Game(name="dots", game_type=Game_t.SCORED)
 MOUSE = Game(name="mouse", game_type=Game_t.UNSCORED)
@@ -82,8 +82,8 @@ def main() -> None:
         centroids = cv.cv_loop()
 
         dt = time.time() - prev_time
-        loop_result = cur_game.loop(centroids, dt)
         prev_time = time.time()
+        loop_result = cur_game.loop(centroids, dt)
 
         if loop_result == Loop_Result_t.EXIT:
             game_result = cur_game.deinit()
