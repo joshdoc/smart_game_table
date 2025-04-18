@@ -79,10 +79,13 @@ FINGER_OUTER_THRESHOLD: int = 31  # 69
 FINGER_MIN_AREA: int = 100
 FINGER_MAX_AREA: int = 1500
 
+HOVER_INNER_THRESHOLD: int = 15
+HOVER_OUTER_THRESHOLD: int = 15
+
 CD_INNER_THRESHOLD: int = 24  # 35
 CD_OUTER_THRESHOLD: int = 29  # 42
-CD_MIN_AREA: int = 40000
-CD_MAX_AREA: int = 60000
+CD_MIN_AREA: int = 27*1000  #40000
+CD_MAX_AREA: int = 35*1000  #60000
 
 FINGER_PARAMS = DetectionParameters(
     FINGER_INNER_THRESHOLD, FINGER_OUTER_THRESHOLD, FINGER_MIN_AREA, FINGER_MAX_AREA, False
@@ -319,6 +322,8 @@ def _top_left_corner_correction(x: int, y: int) -> tuple[int, int]:
         x -= 10
     return x, y
 
+def _detect_hover(contours: np.ndarray) -> list[Any]:
+    pass
 
 def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> list[Any]:
     centroids: list[Centroid] = []
@@ -387,7 +392,7 @@ def _idCD(cds: list[Centroid]) -> DetectedCentroids:
             if d < maxDist:
                 correctPosition = i
                 maxDist = d
-        print("CorrectPos", correctPosition)
+        #print("CorrectPos", correctPosition)
         newCDlist[correctPosition] = cd
         lastPos[correctPosition] = (cd.xpos, cd.ypos)
     return newCDlist

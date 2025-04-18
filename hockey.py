@@ -52,10 +52,13 @@ BLACK = (0, 0, 0)
 BLUE = (255, 0, 0)
 
 PUCK_RADIUS = 15 * 2
-PADDLE_RADIUS = 130
+PADDLE_RADIUS = 95
 
 VELOCITY_SCALE = 2
 FRICTION = 0.99
+
+GOAL_POST_WIDTH = 10
+GOAL_POST_LEN = 400
 
 ####################################################################################################
 # GLOBALS                                                                                          #
@@ -69,6 +72,22 @@ prev_time = time.time()
 ####################################################################################################
 # CLASSES                                                                                          #
 ####################################################################################################
+class GoalSlot(pygame.sprite.Sprite):
+    def __init__(self, pos: tuple[int, int], groups: Any,length=GOAL_POST_LEN, width=GOAL_POST_WIDTH, id=0):
+        super().__init__(groups)
+        self.image = pygame.Surface((width, length), pygame.SRCALPHA)
+        #self.image.fill((255, 255, 255))  # Fill it with white color
+        pygame.draw.rect(self.image, WHITE, pygame.Rect(0, 0, GOAL_POST_WIDTH, GOAL_POST_LEN), 
+                         width=0, border_radius=min(width,length/2))
+        self.rect = self.image.get_rect()
+
+        self.rect.x = pos[0]
+        self.rect.y = pos[1]
+        self.ID = id 
+        
+        self.prev_rect: self.rect
+    def update():
+        pass
 
 
 class Puck(pygame.sprite.Sprite):
@@ -95,6 +114,9 @@ class Puck(pygame.sprite.Sprite):
     def _collision(self) -> None:
         collision_sprites = pygame.sprite.spritecollide(self, self.obstacles, False)
         for sprite in collision_sprites:
+            if (isinstance(sprite, GoalSlot)):
+                print("Score!")
+                continue
             if (
                 self.rect.right >= sprite.rect.left
                 and self.prev_rect.right <= sprite.prev_rect.left
@@ -195,6 +217,8 @@ def init(_=None) -> None:
     player2 = Paddle(
         (SCREEN_WIDTH - PADDLE_RADIUS, SCREEN_HEIGHT // 2), [all_sprites, collision_sprites]
     )
+    goal1 = GoalSlot((0,SCREEN_HEIGHT//2//2), [all_sprites, collision_sprites],id=0)
+    goal2 = GoalSlot((SCREEN_WIDTH-GOAL_POST_WIDTH,SCREEN_HEIGHT//2//2), [all_sprites, collision_sprites],id=1)
 
 
 def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
