@@ -1,7 +1,7 @@
 # Smart Game Table
 EECS 498-008 & 598-008 / CSE 596 - Engineering Interactive Systems
 ## Authors
-- Daniel Calco (dcalco@umich.edu) // dcalkoj.github.io
+- Daniel Calco (dcalco@umich.edu) // [dcalkoj.github.io](dcalkoj.github.io)
 - Joshua Doctor (joshdoc@umich.edu)
 - Matthew Priskorn (mcprisk@umich.edu)
 - Neel Vora (neelnv@umich.edu)
