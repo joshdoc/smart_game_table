@@ -3,25 +3,16 @@ from typing import Optional
 import pygame
 
 from cv import DetectedCentroids
-
-# Mocked game list and high scores (normally provided by `sgt.py`)
-_games = ["undertable", "hockey", "user_test", "mouse"]
-_high_scores = {
-    "undertable": 42,
-    "user_test": 87,
-}
+from sgt_types import Game, Game_t, Loop_Result_t
 
 _selected_game: Optional[str] = None
-_initialized: bool = False
 _font = None
 _screen = None
 _menu_items = []  # List of (rect, game_name) pairs
 
 
-def init():
+def init(games: list[Game]):
     global _initialized, _font, _screen, _menu_items
-    if _initialized:
-        return
 
     pygame.init()
     _screen = pygame.display.set_mode((800, 600))
@@ -32,38 +23,43 @@ def init():
     _menu_items.clear()
     padding = 20
     item_height = 50
-    for i, game in enumerate(_games):
-        text = f"{i+1}. {game}"
-        if game in _high_scores:
-            text += f" (High Score: {_high_scores[game]})"
+    for i, game in enumerate(games):
+        text = f"{i + 1}. {game.name}"
+        if game.game_type == Game_t.SCORED:
+            text += f" (High Score: {game.high_score})"
 
         surface = _font.render(text, True, (255, 255, 255))
         rect = surface.get_rect(topleft=(100, 100 + i * (item_height + padding)))
         _screen.blit(surface, rect)
-        _menu_items.append((rect, game))
+        _menu_items.append((rect, game.name))
 
     pygame.display.flip()
     _initialized = True
 
 
-def loop(centroids: DetectedCentroids, dt: float) -> bool:
+def loop(centroids: DetectedCentroids, _) -> Loop_Result_t:
     global _selected_game
+
+    retVal: Loop_Result_t = Loop_Result_t.CONTINUE
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             _selected_game = None
-            return True
+            retVal = Loop_Result_t.EXIT
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            pos = pygame.mouse.get_pos()
-            for rect, game in _menu_items:
-                if rect.collidepoint(pos):
-                    _selected_game = game
-                    return True
+    if centroids.escape:
+        _selected_game = None
+        retVal = Loop_Result_t.EXIT
 
-    return centroids.escape  # fallback ESC gesture
+    for centroid in centroids.fingers:
+        for rect, game in _menu_items:
+            if rect.collidepoint((centroid.xpos, centroid.ypos)):
+                _selected_game = game.name
+                retVal = Loop_Result_t.EXIT
+
+    return retVal
 
 
-def deinit() -> str:
+def deinit() -> Optional[str]:
     pygame.quit()
-    return _selected_game or _games[0]
+    return _selected_game

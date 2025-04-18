@@ -268,9 +268,9 @@ def _trackbar_init() -> None:
     control_image = cv2.imread("debug/control.png")
     cv2.imshow("Controls", control_image)
 
-    cv2.createTrackbar("ThreshI", "Controls", 0, 255, lambda: None)
+    cv2.createTrackbar("ThreshI", "Controls", 0, 255, lambda _: None)
     cv2.setTrackbarPos("ThreshI", "Controls", 47)  # inner
-    cv2.createTrackbar("ThreshO", "Controls", 0, 255, lambda: None)
+    cv2.createTrackbar("ThreshO", "Controls", 0, 255, lambda _: None)
     cv2.setTrackbarPos("ThreshO", "Controls", 69)  # outer
 
 
