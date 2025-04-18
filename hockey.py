@@ -18,6 +18,7 @@ import numpy as np
 import pygame
 
 import cv
+from sgt_types import DetectedCentroids, Centroid, Loop_Result_t
 
 ####################################################################################################
 # Types                                                                                            #
@@ -169,12 +170,11 @@ class Paddle(pygame.sprite.Sprite):
 ####################################################################################################
 
 
-def game_init() -> None:
+def init(_) -> None:
     global screen, font, puck, player1, player2
 
     pygame.init()
-    cv.cv_init(detect_fingers=False, detect_cds=True)
-
+    
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     font = pygame.font.SysFont("Arial", 24)
 
@@ -185,11 +185,8 @@ def game_init() -> None:
     )
 
 
-def game_loop() -> None:
+def loop(centroids: DetectedCentroids, dt: float) -> None:
     global prev_time
-
-    dt = time.time() - prev_time
-    prev_time = time.time()
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -199,12 +196,7 @@ def game_loop() -> None:
     screen.fill(BLACK)
     puck.update(dt)
 
-    x, y = pygame.mouse.get_pos()
-
-    # TEMPORARY
-    # player1.update(dt, cv.Centroid(x, y, np.zeros(1)))
-
-    paddle_locations = cv.cv_loop().cds
+    paddle_locations: list[Centroid] = centroids.cds
     if len(paddle_locations) == 2:
         player1.update(dt, paddle_locations[0])
         player2.update(dt, paddle_locations[1])
@@ -226,6 +218,9 @@ def game_loop() -> None:
 
     pygame.display.update()
 
+def deinit() -> None:
+    pygame.quit()
+
 
 ####################################################################################################
 # Main                                                                                             #
@@ -233,11 +228,16 @@ def game_loop() -> None:
 
 
 def main() -> None:
-    game_init()
+    cv.cv_init(detect_fingers=True, detect_cds=True)
+    init()
 
-    while True:
-        game_loop()
+    loop_res: Loop_Result_t = Loop_Result_t.CONTINUE
 
+    while loop_res == Loop_Result_t.CONTINUE:
+        centroids = cv.cv_loop()
+        loop_res = loop()
+    
+    deinit()
 
 if __name__ == "__main__":
     main()

@@ -33,7 +33,7 @@ def _distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
 
-def init():
+def init(_):
     global clock, screen, font
     pygame.init()
 
@@ -43,7 +43,7 @@ def init():
     pygame.display.set_caption("Tap the Target Game")
 
 
-font = pygame.font.SysFont("Arial", 24)
+    font = pygame.font.SysFont("Arial", 24)
 last_spawn_time = time.time()
 start_time = time.time()
 
@@ -126,6 +126,8 @@ def main() -> None:
     while loop_res == Loop_Result_t.CONTINUE:
         centroids: DetectedCentroids = cv.cv_loop()
         loop_res = loop(centroids)
+    
+    deinit()
 
 
 if __name__ == "__main__":

@@ -40,12 +40,12 @@ from sgt_types import Game, Game_t, Loop_Result_t
 
 
 MENU = Game(name="menu", game_type=Game_t.MENU)
-UNDERTABLE = Game(name="undertable", game_type=Game_t.SCORED)
+#UNDERTABLE = Game(name="undertable", game_type=Game_t.SCORED)
 HOCKEY = Game(name="hockey", game_type=Game_t.UNSCORED)
 DOTS = Game(name="dots", game_type=Game_t.SCORED)
 MOUSE = Game(name="mouse", game_type=Game_t.UNSCORED)
 
-GAMES = {game.name: game for game in [UNDERTABLE, HOCKEY, DOTS, MOUSE]}
+GAMES = {game.name: game for game in [DOTS, HOCKEY, MOUSE]}
 
 
 ####################################################################################################
