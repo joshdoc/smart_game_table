@@ -23,22 +23,11 @@ import cv2
 import numpy as np
 import math
 
+from sgt_types import Centroid, DetectedCentroids
+
 ####################################################################################################
 # Types                                                                                            #
 ####################################################################################################
-
-
-@dataclass
-class Centroid:
-    xpos: int
-    ypos: int
-    contour_hull: np.ndarray
-
-
-@dataclass
-class DetectedCentroids:
-    fingers: list[Centroid]
-    cds: list[Centroid]
 
 
 @dataclass
@@ -73,7 +62,7 @@ TARGET = [(0, 0), (WIDTH, 0), (WIDTH, HEIGHT), (0, HEIGHT)]
 CUT_LOW = 15
 CUT_RIGHT = -10
 CUT_LEFT = -10
-CUT_TOP = -10
+CUT_TOP = -10-15
 TOP_LEFT_CORRECTION_FACTOR_X: int = 10
 TOP_LEFT_CORRECTION_FACTOR_Y: int = 10
 
@@ -86,6 +75,7 @@ HULL_MIN_SOLIDITY: float = 0.8
 
 FINGER_INNER_THRESHOLD: int = 25#47
 FINGER_OUTER_THRESHOLD: int = 31#69
+
 FINGER_MIN_AREA: int = 100
 FINGER_MAX_AREA: int = 1500
 
@@ -152,10 +142,6 @@ def _update_contours(margin):
     current_margin = margin
 
 
-def _nothing(_):
-    pass
-
-
 ####################################################################################################
 # Private Functions                                                                                #
 ####################################################################################################
@@ -205,6 +191,7 @@ def _crop_bg(frame: np.ndarray) -> None:
         corners = _reorder_corners(corners)
 
     if CFG_SHOW_INITIAL_BG:
+    
         cv2.imshow("frame", frame)
         cv2.waitKey(2000)
 
@@ -298,7 +285,7 @@ def _trackbar_init() -> None:
     cv2.createTrackbar("ThreshOcd", "Controls", 0, 255, _nothing)
     cv2.setTrackbarPos("ThreshOcd", "Controls", 42)  # outer
 
-
+    
 def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
     topLX = 313
     topLY = 198
@@ -319,11 +306,15 @@ def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
     thresh = cv2.add(threshI, threshO)
     return thresh
 
+
 def _top_left_corner_correction(x: int, y: int) -> tuple[int, int]:
     if x < 200 and y < 200:
         x -= 10
         y -= 10
+    elif x < 800 and y < 200:
+        x-=10
     return x, y
+
 
 def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> list[Any]:
     centroids: list[Centroid] = []
@@ -427,7 +418,7 @@ def cv_loop() -> DetectedCentroids:
 
     ret, frame = capture.read()
 
-    retVal = DetectedCentroids([], [])
+    retVal = DetectedCentroids([], [], False)
 
     if not ret:
         print("Error: Could not read frame.")
