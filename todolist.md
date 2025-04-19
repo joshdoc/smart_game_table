@@ -5,17 +5,21 @@ Todo-list:
 	- [x] make the menu look better
 	- [x] add score display after games
 - [ ] undertable.py
-	- [ ] integrate touch controls
-    - [ ] refactor to have init(), loop(), deinit()
+	- [x] integrate touch controls
+	- [ ] polish
+	- [ ] reset handling
+    - [x] refactor to have init(), loop(), deinit()
 - [ ] cv.py
     - [ ] Hovering handler
     - [x] add escape sequence to exit games
     - [ ] ensure all CFG constants set properly before demo
-- [ ] hockey.py
+- [x] hockey.py
 	- [x] scoring
-	- [ ] fix goal appearance spots
+	- [x] fix goal appearance spots
+	- [x] crash on idcd
 - [ ] macrodata.py
     - [ ] Use highlighting instead of mouse hover
     - [ ] Two tap boxing
     - [ ] Boxing animation
     - [ ] refactor to have init(), loop(), deinit()
+- [x] mouse.py

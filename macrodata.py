@@ -215,7 +215,7 @@ def game_loop() -> None:
     #draw_scanlines()
     
     ## LIGHT MODE
-    #light_mode()
+    light_mode()
 
     pygame.display.flip()
 

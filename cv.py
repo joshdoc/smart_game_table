@@ -52,7 +52,7 @@ CAM_IDX: int = 0
 CROP: tuple[slice, slice] = (slice(0, 1), slice(0, 1))
 
 CROP_SCALE: float = 0.975  # scale the cropped image
-CROP_MIN_THRESH: int = 30  # threshold for detecting the edges
+CROP_MIN_THRESH: int = 10  # threshold for detecting the edges
 
 # define screen size for warping the image
 WIDTH = 1400
@@ -85,8 +85,8 @@ HOVER_OUTER_THRESHOLD: int = 15
 
 CD_INNER_THRESHOLD: int = 24  # 35
 CD_OUTER_THRESHOLD: int = 29  # 42
-CD_MIN_AREA: int = 27 * 1000  # 40000
-CD_MAX_AREA: int = 35 * 1000  # 60000
+CD_MIN_AREA: int = 26 * 1000  # 40000
+CD_MAX_AREA: int = 40 * 1000  # 60000
 
 FINGER_PARAMS = DetectionParameters(
     FINGER_INNER_THRESHOLD, FINGER_OUTER_THRESHOLD, FINGER_MIN_AREA, FINGER_MAX_AREA, False
@@ -133,7 +133,7 @@ corners: np.ndarray = np.zeros(0)
 standalone: bool = False
 capture: cv2.VideoCapture = cv2.VideoCapture()
 bg: np.ndarray = np.zeros(0)
-current_margin: int = 0
+current_margin: int = 15
 
 frame_count: int = 0
 fps: float = 0
@@ -472,6 +472,12 @@ def cv_loop() -> DetectedCentroids:
 
     # Compute absolute difference between the background and current frame
     diff = cv2.absdiff(bg, gray_frame)
+
+    mask = np.zeros((HEIGHT, WIDTH), dtype=np.uint8)
+    cv2.rectangle(mask, (current_margin, current_margin), (WIDTH - current_margin, HEIGHT - current_margin), 255, -1)
+    #cv2.rectangle(mask, (topLX, topLY), (width - topLX, height - topLY), 255, -1)
+
+    diff = cv2.bitwise_and(diff, (mask))
 
     retVal.fingers = _run_detection(diff, FINGER_PARAMS)
     retVal.cds = _run_detection(diff, CD_PARAMS)

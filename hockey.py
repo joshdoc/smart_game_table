@@ -57,8 +57,8 @@ PADDLE_RADIUS = 95
 VELOCITY_SCALE = 2
 FRICTION = 0.99
 
-GOAL_POST_WIDTH = 10
-GOAL_POST_LEN = 250
+GOAL_POST_WIDTH = 15
+GOAL_POST_LEN = 300
 
 ####################################################################################################
 # GLOBALS                                                                                          #
@@ -233,8 +233,8 @@ def init(_=None) -> None:
     player2 = Paddle(
         (SCREEN_WIDTH - PADDLE_RADIUS, SCREEN_HEIGHT // 2), [all_sprites, collision_sprites]
     )
-    goal1 = GoalSlot((0,SCREEN_HEIGHT//2//2), [all_sprites, collision_sprites],id=0)
-    goal2 = GoalSlot((SCREEN_WIDTH-GOAL_POST_WIDTH,SCREEN_HEIGHT//2//2), [all_sprites, collision_sprites],id=1)
+    goal1 = GoalSlot((0,SCREEN_HEIGHT//2-GOAL_POST_LEN/2), [all_sprites, collision_sprites],id=0)
+    goal2 = GoalSlot((SCREEN_WIDTH-GOAL_POST_WIDTH,SCREEN_HEIGHT//2-GOAL_POST_LEN/2), [all_sprites, collision_sprites],id=1)
 
 
 def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:

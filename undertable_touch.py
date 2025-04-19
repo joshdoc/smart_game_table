@@ -21,7 +21,7 @@ BASE_PROBE_PROJECTILE_SPEED_RANGE    = (250, 350)
 BASE_PROBE_PROJECTILE_DISTANCE_RANGE = (400, 500)
 BASE_PROBE_DELAY_RANGE               = (0.3, 0.7)
 BASE_PROBE_VARIABILITY_RANGE         = (10, 30)
-BASE_PROBE_SPAWN_RATE                = 1.0
+BASE_PROBE_SPAWN_RATE                = 1.0 
 PROBE_FADE_DURATION                  = 0.3
 PROBE_BOUNDARY_INSET                 = 50
 
@@ -55,7 +55,7 @@ CAPACITOR_ROTATION_SPEED             = 180
 
 # Enable mouse input
 
-mouse_debug = True
+mouse_debug = False
 
 # Score-dependent globals
 
@@ -311,6 +311,7 @@ class Capacitor:
 ####################################################################################################
 
 def spawn_probe(dt):
+    global probes
     if game_state != "play":
         return
     speed      = random.uniform(*PROBE_PROJECTILE_SPEED_RANGE)
@@ -617,6 +618,7 @@ def reset_game():
     global alpha, player_alpha, boundary_alpha, boss_alpha
     global dodge_timer, jump_mode_timer, shield_mode_timer
     global player_lives, invincible, score
+    global temp_score
 
     # restore HUD
     score_label.x = original_score_x
@@ -633,6 +635,7 @@ def reset_game():
     player_alpha = boundary_alpha = boss_alpha = 0
     player_lives = 3
     update_health_sprite()
+    temp_score = score
     score = 0
     score_label.text = str(score)
     invincible = False
@@ -646,11 +649,11 @@ def reset_game():
 # EVENT HANDLERS                                                                                   #
 ####################################################################################################
 
-@window.event
 def on_mouse_press(x, y, button, modifiers):
     global fading, player_target_x, player_target_y, jump_charging, player_vy, shield_target_angle
+    global exit_game
     if game_state == "end":
-        reset_game()
+        exit_game = True
         return
     if game_state == "menu":
         if (abs(x - title_sprite.x) < title_sprite.width/2 and
@@ -662,26 +665,24 @@ def on_mouse_press(x, y, button, modifiers):
         bb = boundary_sprite.y - boundary_sprite.height/2 + 25 + player_sprite.height/2
         tb = boundary_sprite.y + boundary_sprite.height/2 - 25 - player_sprite.height/2
         player_target_x = max(min(x, rb), lb)
-        player_target_y = max(min(y, tb), bb)
+        player_target_y = max(min(HEIGHT - y, tb), bb)
     elif game_state == "jump":
         ground = boundary_sprite.y - boundary_sprite.height/2 + 25 + player_sprite.height/2
         if abs(player_sprite.y - ground) < 1e-3:
             jump_charging = True
             player_vy = JUMP_INITIAL_VELOCITY
     elif game_state == "shield":
-        dx, dy = x - player_sprite.x, y - player_sprite.y
+        dx, dy = x - player_sprite.x, HEIGHT - y - player_sprite.y
         if abs(dx) >= abs(dy):
             shield_target_angle = 0 if dx>0 else 180
         else:
             shield_target_angle = 90 if dy>0 else 270
 
-@window.event
 def on_mouse_release(x, y, button, modifiers):
     global jump_charging
     if game_state == "jump":
         jump_charging = False
 
-@window.event
 def on_draw():
     window.clear()
     if game_state == "end":
@@ -727,8 +728,12 @@ def on_draw():
 
 def init(_=None):
     global exit_game, game_over, window
-    global score_label, oscilloscope_sprite
+    global score_label, oscilloscope_sprite, title_sprite, player_sprite, boundary_sprite, boss_sprite, boss_body_sprite, large_oscilloscope_sprite
+    global health_sprite_jump, health_sprite_normal, health_sprite_shield, boss_left_image, boss_right_image
+    global player_target_x, player_target_y, boss_center_image, red_probe_image, black_probe_image, shield_sprite
+    global player_jump_image, player_shield_image, health_2_image, health_1_image, health_2_jump_image, health_2_shield_image, health_1_shield_image
     global WIDTH, HEIGHT
+    global title_image, player_image, player_shield_image, boundary_image, boss_left_image, boss_center_image, boss_right_image, boss_body_image, health_3_image, health_2_image, health_1_image, health_3_jump_image, health_2_jump_image, health_1_jump_image, health_3_shield_image, health_2_shield_image, health_1_shield_image, red_probe_image, black_probe_image, oscilloscope_image, large_oscilloscope_image, shield_image, pulse_thin_image, pulse_wide_image, capacitor_image         
 
     exit_game = False
     game_over = False
@@ -747,7 +752,7 @@ def init(_=None):
         text="0",
         font_name="Press Start 2P",
         font_size=50,
-        x=1315, y=HEIGHT - 230,
+        x=965, y=HEIGHT - 230,
         anchor_x="center", anchor_y="center",
         color=(255, 255, 255, 255)
     )
@@ -849,8 +854,8 @@ def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
 
     if not mouse_debug:
         if centroids and centroids.fingers:
-            x, y = centroids.fingers[0]
-            on_mouse_press(x, y, mouse.LEFT, 0)
+            centroid = centroids.fingers[0]
+            on_mouse_press(centroid.xpos, centroid.ypos, mouse.LEFT, 0)
 
     pyglet.clock.tick(poll=True)
     window.dispatch_events()
@@ -868,14 +873,17 @@ def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
 ####################################################################################################
 
 def deinit() -> int:
+    global window
     pyglet.clock.unschedule(update)
 
     end_game()
 
-    if window:
+    reset_game
+
+    if window is not None:
         window.close()
         window = None
-    return score
+    return temp_score
 
 ####################################################################################################
 # MAIN                                                                                             #
