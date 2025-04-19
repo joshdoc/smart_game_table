@@ -1,12 +1,15 @@
- Todo-list:
- - [ ] menu.py
-	- [ ] make the menu loop better
+Todo-list:
+- [x] sgt.py
+    - [x] integrate scoring display with menu
+- [x] menu.py
+	- [x] make the menu look better
+	- [x] add score display after games
 - [ ] undertable.py
 	- [ ] integrate touch controls
     - [ ] refactor to have init(), loop(), deinit()
 - [ ] cv.py
-    - [ ] Highlighting handler
-    - [ ] add escape sequence to exit games
+    - [ ] Hovering handler
+    - [x] add escape sequence to exit games
     - [ ] ensure all CFG constants set properly before demo
 - [ ] hockey.py
 	- [x] scoring
