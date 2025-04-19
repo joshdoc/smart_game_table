@@ -159,11 +159,12 @@ def draw_bg():
     txt = font.render('03', True, OFF_WHITE)
     window.blit(txt, (350+BIN_WIDTH*2+300/2-12, 880+50/2-20))
     nxtboxoffset=9
-    #PROGRESS BOX
+    #PROGRESS BOXES
     pygame.draw.rect(window, OFF_WHITE, pygame.Rect(150,880+50+nxtboxoffset,300,40), 3, -1 )
     pygame.draw.rect(window, OFF_WHITE, pygame.Rect(250+BIN_WIDTH,880+50+nxtboxoffset,300,40), 3, -1 )
     pygame.draw.rect(window, OFF_WHITE, pygame.Rect(350+2*+BIN_WIDTH,880+50+nxtboxoffset,300,40), 3, -1 )
-    pygame.draw.rect(window, OFF_WHITE, pygame.Rect(0,880+50+nxtboxoffset+40+10,WIDTH,40), 100, -1)
+    
+    pygame.draw.rect(window, OFF_WHITE, pygame.Rect(0,880+50+nxtboxoffset+40+10,WIDTH,100), 100, -1)
     hex = font.render('0x6AF307 : 0x38A687', True, BLACK)
     window.blit(hex, (566, 993))
     
@@ -211,7 +212,7 @@ def game_loop() -> None:
     fps_text = font.render(f'FPS: {int(fps)}', True, BLACK)
     window.blit(fps_text, (10, HEIGHT - BIN_HEIGHT - 20))'''
 
-    draw_scanlines()
+    #draw_scanlines()
     
     ## LIGHT MODE
     #light_mode()
