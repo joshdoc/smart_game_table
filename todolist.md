@@ -4,10 +4,10 @@ Todo-list:
 - [x] menu.py
 	- [x] make the menu look better
 	- [x] add score display after games
-- [ ] undertable.py
+- [x] undertable.py
 	- [x] integrate touch controls
-	- [ ] polish
-	- [ ] reset handling
+	- [x] polish
+	- [x] reset handling
     - [x] refactor to have init(), loop(), deinit()
 - [ ] cv.py
     - [ ] Hovering handler
@@ -21,5 +21,5 @@ Todo-list:
     - [ ] Use highlighting instead of mouse hover
     - [ ] Two tap boxing
     - [ ] Boxing animation
-    - [ ] refactor to have init(), loop(), deinit()
+    - [x] refactor to have init(), loop(), deinit()
 - [x] mouse.py

@@ -14,6 +14,7 @@ import sys
 import math
 import time
 import timeit
+import cv
 
 ####################################################################################################
 # Constants                                                                                        #
@@ -48,10 +49,21 @@ LUMON_PNG = pygame.transform.scale_by(LUMON_PNG, .12)
 # Globals                                                                                          #
 ####################################################################################################
 # Initialize Pygame
-pygame.init()
 
-# Set up the display
-window = pygame.display.set_mode((WIDTH, HEIGHT))
+def init(_=None):
+    global clock, window, font
+    pygame.init()
+
+    clock = pygame.time.Clock()
+
+    window = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("MDR")
+
+    font = pygame.font.SysFont('Arial', 30)
+
+def deinit() -> int:
+    pygame.quit()
+    return 42
 
 # Font
 font = pygame.font.SysFont('Arial', 30)
@@ -222,6 +234,19 @@ def game_loop() -> None:
     # Cap the frame rate to 60 frames per second
     clock.tick(30)
 
-while True:
-    draw_bg()
-    game_loop()
+
+def main() -> None:
+    cv.cv_init(detect_fingers=True, detect_cds=False)
+    init()
+
+    #loop_res: Loop_Result_t = Loop_Result_t.CONTINUE
+
+    while True:
+        draw_bg()
+        game_loop()
+
+
+    deinit()
+
+if __name__ == "__main__":
+    main()
