@@ -114,12 +114,14 @@ def draw_grid(mouse_pos):
                         vibration_timers[i][j] = VIBRATION_DURATION
                         x += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         y += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
+                        label = pygame.font.SysFont('Arial', 30+6*vibrato_grid[i][j]).render(str(num), True, WHITE)
                     elif vibration_timers[i][j]:
                         # Apply vibration if the timer is active
                         x += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         y += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         if (vibration_timers[i][j]>0):
                             vibration_timers[i][j] -= 1
+                        label = pygame.font.SysFont('Arial', 30+6*vibrato_grid[i][j]).render(str(num), True, WHITE)
                     window.blit(label, (x + CELL_SIZE // 4, y + CELL_SIZE // 4))
 
 def draw_scanlines():
@@ -205,9 +207,9 @@ def game_loop() -> None:
         pygame.draw.rect(window, OFF_WHITE, selection_rect, 2)
 
     # Render FPS
-    fps = clock.get_fps()
+    '''fps = clock.get_fps()
     fps_text = font.render(f'FPS: {int(fps)}', True, BLACK)
-    window.blit(fps_text, (10, HEIGHT - BIN_HEIGHT - 20))
+    window.blit(fps_text, (10, HEIGHT - BIN_HEIGHT - 20))'''
 
     draw_scanlines()
     
