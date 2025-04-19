@@ -13,8 +13,6 @@ Runs a single instance of our user test with the specified parameters.
 Runs our full user testing suite for a single user.
 - `log/plotter.py` \
 Plots all of our data from the user test data.
-- `macrodata.py` \
-Also plots data from the user tests.
 ### Games
 - `sgt.py` \
 Runs the full suite of games, starting with the game selection menu.
@@ -24,6 +22,8 @@ Makes the table into an air hockey emulator detecting our tangible air hockey pa
 Plays a game similar to an Undertale boss fight on the table.
 - `dots.py` \
 Runs the user testing game without any of the data collection.
+- `macrodata.py` \
+Plays a game similar to the macrodata refinement job in Severance.
 - `mouse.py` \
 Makes the table into a functional touchscreen.
 - `menu.py` \

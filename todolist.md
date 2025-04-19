@@ -1,15 +1,18 @@
  Todo-list:
- - [ ] sgt.py
-	- [ ] gesture to exit game
+ - [ ] menu.py
+	- [ ] make the menu loop better
 - [ ] undertable.py
 	- [ ] integrate touch controls
+    - [ ] refactor to have init(), loop(), deinit()
 - [ ] cv.py
-	 - [ ] Highlighting handler
-	 - [ ] ensure all CFG constants set properly before demo
+    - [ ] Highlighting handler
+    - [ ] add escape sequence to exit games
+    - [ ] ensure all CFG constants set properly before demo
 - [ ] hockey.py
 	- [x] scoring
 	- [ ] fix goal appearance spots
 - [ ] macrodata.py
-	 - [ ] Use highlighting instead of mouse hover
-	 - [ ] Two tap boxing
-	 - [ ] Boxing animation
+    - [ ] Use highlighting instead of mouse hover
+    - [ ] Two tap boxing
+    - [ ] Boxing animation
+    - [ ] refactor to have init(), loop(), deinit()
