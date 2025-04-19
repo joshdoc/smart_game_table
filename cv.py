@@ -1,5 +1,5 @@
 ####################################################################################################
-# CV.py | Authors: mcprisk, dcalco, joshdoc, neelnv                                                #
+# cv.py | Authors: mcprisk, dcalco, joshdoc, neelnv                                                #
 #                                                                                                  #
 # This file is used to detect finger presses and tangible object locations on our EECS 498/598     #
 # Engineering Interactive Systems project.                                                         #
@@ -18,10 +18,11 @@ import copy
 import math
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Sequence
 
 import cv2
 import numpy as np
+from cv2.typing import MatLike
 
 from sgt_types import Centroid, DetectedCentroids
 
@@ -84,8 +85,8 @@ HOVER_OUTER_THRESHOLD: int = 15
 
 CD_INNER_THRESHOLD: int = 24  # 35
 CD_OUTER_THRESHOLD: int = 29  # 42
-CD_MIN_AREA: int = 27*1000  #40000
-CD_MAX_AREA: int = 35*1000  #60000
+CD_MIN_AREA: int = 27 * 1000  # 40000
+CD_MAX_AREA: int = 35 * 1000  # 60000
 
 FINGER_PARAMS = DetectionParameters(
     FINGER_INNER_THRESHOLD, FINGER_OUTER_THRESHOLD, FINGER_MIN_AREA, FINGER_MAX_AREA, False
@@ -136,7 +137,8 @@ current_margin: int = 0
 
 frame_count: int = 0
 fps: float = 0
-start_time = time.time()
+start_time: float = time.time()
+lastPos: list[tuple[int, int]] = []
 
 
 ####################################################################################################
@@ -144,7 +146,7 @@ start_time = time.time()
 ####################################################################################################
 
 
-def _update_contours(margin):
+def _update_contours(margin: int) -> None:
     global current_margin
     current_margin = margin
 
@@ -322,10 +324,38 @@ def _top_left_corner_correction(x: int, y: int) -> tuple[int, int]:
         x -= 10
     return x, y
 
-def _detect_hover(contours: np.ndarray) -> list[Any]:
-    pass
 
-def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> list[Any]:
+# escape sequences will be triggered when there is a centroid within two corners of the table
+def _detect_escape(centroids: list[Centroid]) -> bool:
+    # Define the coordinates of the four corners of the table
+    top_left = (0, 0)
+    top_right = (WIDTH, 0)
+    bottom_left = (0, HEIGHT)
+    bottom_right = (WIDTH, HEIGHT)
+
+    # Define escape areas around the corners with the given margin
+    margin = 100
+    escape_top_left = (top_left[0] + margin, top_left[1] + margin)
+    escape_top_right = (top_right[0] - margin, top_right[1] + margin)
+    escape_bottom_left = (bottom_left[0] + margin, bottom_left[1] - margin)
+    escape_bottom_right = (bottom_right[0] - margin, bottom_right[1] - margin)
+
+    esc_corners: set[str] = set()
+
+    for centroid in centroids:
+        if centroid.xpos <= escape_top_left[0] and centroid.ypos <= escape_top_left[1]:
+            esc_corners.add("top_left")
+        elif centroid.xpos >= escape_top_right[0] and centroid.ypos <= escape_top_right[1]:
+            esc_corners.add("top_right")
+        elif centroid.xpos <= escape_bottom_left[0] and centroid.ypos >= escape_bottom_left[1]:
+            esc_corners.add("bottom_left")
+        elif centroid.xpos >= escape_bottom_right[0] and centroid.ypos >= escape_bottom_right[1]:
+            esc_corners.add("bottom_right")
+
+    return len(esc_corners) >= 2
+
+
+def _detect_centroids(contours: Sequence[MatLike], min_area: int, max_area: int) -> list[Centroid]:
     centroids: list[Centroid] = []
     for cnt in contours:
         area = cv2.contourArea(cnt)
@@ -375,12 +405,9 @@ def _distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
 
-lastPos = []
-
-
-def _idCD(cds: list[Centroid]) -> DetectedCentroids:
+def _idCD(cds: list[Centroid]) -> list[Centroid]:
     global lastPos
-    newCDlist = [Centroid for _ in range(N_TANGIBLES)]
+    newCDlist: list[Centroid] = [Centroid(0, 0, np.zeros(0)) for _ in range(N_TANGIBLES)]
     for cd in cds:
         correctPosition = 9  # placeholder max values
         maxDist = 99999999  # placeholder max values
@@ -392,7 +419,7 @@ def _idCD(cds: list[Centroid]) -> DetectedCentroids:
             if d < maxDist:
                 correctPosition = i
                 maxDist = d
-        #print("CorrectPos", correctPosition)
+        # print("CorrectPos", correctPosition)
         newCDlist[correctPosition] = cd
         lastPos[correctPosition] = (cd.xpos, cd.ypos)
     return newCDlist
@@ -448,8 +475,13 @@ def cv_loop() -> DetectedCentroids:
 
     retVal.fingers = _run_detection(diff, FINGER_PARAMS)
     retVal.cds = _run_detection(diff, CD_PARAMS)
+
+    # N_TANGIBLES should be configurable in init in the future
     if len(retVal.cds) == N_TANGIBLES:
         retVal.cds = _idCD(retVal.cds)
+
+    if len(retVal.fingers):
+        retVal.escape = _detect_escape(retVal.fingers)
 
     frame_count += 1
     current_time = time.time()
