@@ -13,7 +13,6 @@
 import pyautogui as pg
 
 import cv
-from sgt_types import Loop_Result_t
 
 ####################################################################################################
 # PRIVATE FUNCTIONS                                                                                #
@@ -54,16 +53,10 @@ def _move_mouse(xpos: int, ypos: int) -> None:
 ####################################################################################################
 
 
-def loop(centroids: cv.DetectedCentroids, _=None) -> Loop_Result_t:
-    retVal: Loop_Result_t = Loop_Result_t.CONTINUE
-
-    if centroids.escape:
-        retVal = Loop_Result_t.EXIT
-
+def loop(centroids: cv.DetectedCentroids, _=None) -> bool:
     if len(centroids.fingers):
         _move_mouse(centroids.fingers[0].xpos, centroids.fingers[0].ypos)
-
-    return retVal
+    return centroids.escape
 
 
 ####################################################################################################
@@ -73,10 +66,9 @@ def loop(centroids: cv.DetectedCentroids, _=None) -> Loop_Result_t:
 
 def main():
     cv.cv_init()
-    loop_res: Loop_Result_t = Loop_Result_t.CONTINUE
-    while loop_res == Loop_Result_t.CONTINUE:
+    while True:
         centroids = cv.cv_loop()
-        loop_res = loop(centroids)
+        loop(centroids)
 
 
 if __name__ == "__main__":

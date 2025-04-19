@@ -28,11 +28,58 @@
 # IMPORTS                                                                                          #
 ####################################################################################################
 
+import importlib
 import time
-from typing import Optional
+from dataclasses import dataclass, field
+from enum import Enum
+from types import ModuleType
+from typing import Callable
 
 import cv
-from sgt_types import Game, Game_t, Loop_Result_t
+from sgt_types import Loop_Result_t
+
+####################################################################################################
+# TYPES                                                                                            #
+####################################################################################################
+
+
+class Game_t(Enum):
+    MENU = 1
+    SCORED = 2
+    UNSCORED = 3
+
+
+@dataclass
+class Game:
+    name: str
+    game_type: Game_t
+    high_score: int = field(init=False)
+    init: Callable[[], None] = field(init=False)
+    loop: Callable[[cv.DetectedCentroids, float], bool] = field(init=False)
+    # return type depends on game type
+    deinit: Callable[[], int | str | None] = field(init=False)
+    _module: ModuleType = field(init=False)
+
+    def __post_init__(self):
+        self._module = importlib.import_module(self.name)
+
+        try:
+            self.init = getattr(self._module, "init", lambda: None)
+            self.loop = getattr(self._module, "loop")
+            self.deinit = getattr(self._module, "deinit", lambda: None)
+        except AttributeError as e:
+            raise ImportError("Module '{}' must define 'loop'".format(self.name)) from e
+
+        self.high_score = 0
+        try:
+            with open(".{}".format(self.name), "r") as f:
+                content = f.read().strip()
+                self.high_score = int(content)
+        except FileNotFoundError:
+            print("Error: File '.{}' not found.".format(self.name))
+        except ValueError:
+            print("Error: File '.{}' does not contain a valid integer.".format(self.name))
+
 
 ####################################################################################################
 # CONSTANTS                                                                                        #
@@ -40,12 +87,12 @@ from sgt_types import Game, Game_t, Loop_Result_t
 
 
 MENU = Game(name="menu", game_type=Game_t.MENU)
-# UNDERTABLE = Game(name="undertable", game_type=Game_t.SCORED)
+UNDERTABLE = Game(name="undertable", game_type=Game_t.SCORED)
 HOCKEY = Game(name="hockey", game_type=Game_t.UNSCORED)
-DOTS = Game(name="dots", game_type=Game_t.SCORED)
+USER_TEST = Game(name="user_test", game_type=Game_t.SCORED)
 MOUSE = Game(name="mouse", game_type=Game_t.UNSCORED)
 
-GAMES = {game.name: game for game in [DOTS, HOCKEY, MOUSE]}
+GAMES = {game.name: game for game in [UNDERTABLE, HOCKEY, USER_TEST, MOUSE]}
 
 
 ####################################################################################################
@@ -72,18 +119,17 @@ def main() -> None:
     dt: float = 0
     prev_time = time.time()
     loop_result: Loop_Result_t = Loop_Result_t.CONTINUE
-    game_result: Optional[int | str] = None
+    game_result: int | str | None = None
     invalid_game_result: bool = False
 
     cv.cv_init(detect_fingers=True, detect_cds=True)
-    cur_game.init(GAMES)
 
     while True:
         centroids = cv.cv_loop()
 
         dt = time.time() - prev_time
-        prev_time = time.time()
         loop_result = cur_game.loop(centroids, dt)
+        prev_time = time.time()
 
         if loop_result == Loop_Result_t.EXIT:
             game_result = cur_game.deinit()
@@ -94,20 +140,14 @@ def main() -> None:
                 else:
                     invalid_game_result = True
 
-            elif cur_game.game_type == Game_t.SCORED:
+            if cur_game.game_type == Game_t.SCORED:
                 if type(game_result) is int and game_result > cur_game.high_score:
-                    cur_game.update_high_score(game_result)
-                    cur_game = MENU
+                    cur_game.high_score = game_result
                 else:
                     invalid_game_result = True
 
-            else:
-                cur_game = MENU
-
             if invalid_game_result:
                 _game_return_type_error(cur_game, type(game_result))
-
-            cur_game.init(GAMES if cur_game == MENU else None)
 
 
 if __name__ == "__main__":

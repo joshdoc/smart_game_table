@@ -11,11 +11,10 @@
 ####################################################################################################
 
 ####################################################################################################
-# IMPORTS                                                                                          #
+# Imports                                                                                          #
 ####################################################################################################
 
 import copy
-import math
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -26,7 +25,7 @@ import numpy as np
 from sgt_types import Centroid, DetectedCentroids
 
 ####################################################################################################
-# TYPES                                                                                            #
+# Types                                                                                            #
 ####################################################################################################
 
 
@@ -40,7 +39,7 @@ class DetectionParameters:
 
 
 ####################################################################################################
-# CONSTANTS                                                                                        #
+# Constants                                                                                        #
 ####################################################################################################
 
 
@@ -62,30 +61,22 @@ TARGET = [(0, 0), (WIDTH, 0), (WIDTH, HEIGHT), (0, HEIGHT)]
 CUT_LOW = 15
 CUT_RIGHT = -10
 CUT_LEFT = -10
-CUT_TOP = -10 - 15
+CUT_TOP = -10-15
 TOP_LEFT_CORRECTION_FACTOR_X: int = 10
 TOP_LEFT_CORRECTION_FACTOR_Y: int = 10
-
-# Number of tangibles expected
-## 2 for air hockey
-N_TANGIBLES = 2
 
 # Parameters for centroid detection
 HULL_MIN_SOLIDITY: float = 0.8
 
-FINGER_INNER_THRESHOLD: int = 25  # 47
-FINGER_OUTER_THRESHOLD: int = 31  # 69
-
+FINGER_INNER_THRESHOLD: int = 36
+FINGER_OUTER_THRESHOLD: int = 42
 FINGER_MIN_AREA: int = 100
 FINGER_MAX_AREA: int = 1500
 
-HOVER_INNER_THRESHOLD: int = 15
-HOVER_OUTER_THRESHOLD: int = 15
-
-CD_INNER_THRESHOLD: int = 24  # 35
-CD_OUTER_THRESHOLD: int = 29  # 42
-CD_MIN_AREA: int = 27*1000  #40000
-CD_MAX_AREA: int = 35*1000  #60000
+CD_INNER_THRESHOLD: int = 42
+CD_OUTER_THRESHOLD: int = 42
+CD_MIN_AREA: int = 40000
+CD_MAX_AREA: int = 55000
 
 FINGER_PARAMS = DetectionParameters(
     FINGER_INNER_THRESHOLD, FINGER_OUTER_THRESHOLD, FINGER_MIN_AREA, FINGER_MAX_AREA, False
@@ -99,7 +90,7 @@ TEXT_OPTS = [cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2]
 
 
 ####################################################################################################
-# CONFIGURATION                                                                                    #
+# Configuration                                                                                    #
 ####################################################################################################
 
 
@@ -116,15 +107,11 @@ CFG_SHOW_FPS: bool = True
 # Use the trackbars for settings
 CFG_USE_TRACKBARS: bool = False
 # draw the contours on the frame
-CFG_SHOW_CENTROIDS: bool = False
-# Show the thresholded frame
-CFG_SHOW_THRESH: bool = False
-# Draw the detected hulls
-CFG_SHOW_HULL: bool = False
+CFG_SHOW_CENTROIDS: bool = True
 
 
 ####################################################################################################
-# GLOBALS                                                                                          #
+# Globals                                                                                          #
 ####################################################################################################
 
 
@@ -140,7 +127,7 @@ start_time = time.time()
 
 
 ####################################################################################################
-# CALLBACKS                                                                                        #
+# Callbacks                                                                                        #
 ####################################################################################################
 
 
@@ -150,7 +137,7 @@ def _update_contours(margin):
 
 
 ####################################################################################################
-# LOCAL FUNCTIONS                                                                                  #
+# Private Functions                                                                                #
 ####################################################################################################
 
 
@@ -198,7 +185,7 @@ def _crop_bg(frame: np.ndarray) -> None:
         corners = _reorder_corners(corners)
 
     if CFG_SHOW_INITIAL_BG:
-
+    
         cv2.imshow("frame", frame)
         cv2.waitKey(2000)
 
@@ -282,15 +269,10 @@ def _trackbar_init() -> None:
     control_image = cv2.imread("debug/control.png")
     cv2.imshow("Controls", control_image)
 
-    cv2.createTrackbar("ThreshFingerI", "Controls", 0, 255, lambda _: None)
-    cv2.setTrackbarPos("ThreshFingerI", "Controls", 47)  # inner
-    cv2.createTrackbar("ThreshFingerO", "Controls", 0, 255, lambda _: None)
-    cv2.setTrackbarPos("ThreshFingerO", "Controls", 69)  # outer
-
-    cv2.createTrackbar("ThreshIcd", "Controls", 0, 255, lambda _: None)
-    cv2.setTrackbarPos("ThreshIcd", "Controls", 42)  # inner
-    cv2.createTrackbar("ThreshOcd", "Controls", 0, 255, lambda _: None)
-    cv2.setTrackbarPos("ThreshOcd", "Controls", 42)  # outer
+    cv2.createTrackbar("ThreshI", "Controls", 0, 255, lambda: None)
+    cv2.setTrackbarPos("ThreshI", "Controls", 47)  # inner
+    cv2.createTrackbar("ThreshO", "Controls", 0, 255, lambda: None)
+    cv2.setTrackbarPos("ThreshO", "Controls", 69)  # outer
 
 
 def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
@@ -304,8 +286,8 @@ def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
 
     # Different thresholds for the different sections
     if CFG_USE_TRACKBARS:
-        inner_thresh = cv2.getTrackbarPos("ThreshFingerI", "Controls")
-        outer_thresh = cv2.getTrackbarPos("ThreshFingerO", "Controls")
+        inner_thresh = cv2.getTrackbarPos("ThreshI", "Controls")
+        outer_thresh = cv2.getTrackbarPos("ThreshO", "Controls")
 
     _, threshI = cv2.threshold(inner, inner_thresh, 255, cv2.THRESH_BINARY)
     _, threshO = cv2.threshold(outer, outer_thresh, 255, cv2.THRESH_BINARY)
@@ -319,11 +301,9 @@ def _top_left_corner_correction(x: int, y: int) -> tuple[int, int]:
         x -= 10
         y -= 10
     elif x < 800 and y < 200:
-        x -= 10
+        x-=10
     return x, y
 
-def _detect_hover(contours: np.ndarray) -> list[Any]:
-    pass
 
 def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> list[Any]:
     centroids: list[Centroid] = []
@@ -340,7 +320,6 @@ def _detect_centroids(contours: np.ndarray, min_area: int, max_area: int) -> lis
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
                 cX, cY = _top_left_corner_correction(cX, cY)
-
                 centroids.append(Centroid(cX, cY, hull))
 
     return centroids
@@ -363,43 +342,11 @@ def _run_detection(img: np.ndarray, params: DetectionParameters) -> list[Centroi
     # Loop over the contours to detect and draw centroids
     centroids = _detect_centroids(contours, params.min_area, params.max_area)
 
-    if CFG_SHOW_THRESH:
-        cv2.namedWindow("Thresh", cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty("Thresh", cv2.WND_PROP_FULLSCREEN, 1)
-        cv2.imshow("Thresh", thresh)
-
     return centroids
 
 
-def _distance(x1, y1, x2, y2):
-    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-
-
-lastPos = []
-
-
-def _idCD(cds: list[Centroid]) -> DetectedCentroids:
-    global lastPos
-    newCDlist = [Centroid for _ in range(N_TANGIBLES)]
-    for cd in cds:
-        correctPosition = 9  # placeholder max values
-        maxDist = 99999999  # placeholder max values
-        if len(lastPos) < N_TANGIBLES:
-            # time.sleep(2)
-            lastPos.append((cd.xpos, cd.ypos))
-        for i in range(len(lastPos)):
-            d = _distance(lastPos[i][0], lastPos[i][1], cd.xpos, cd.ypos)
-            if d < maxDist:
-                correctPosition = i
-                maxDist = d
-        #print("CorrectPos", correctPosition)
-        newCDlist[correctPosition] = cd
-        lastPos[correctPosition] = (cd.xpos, cd.ypos)
-    return newCDlist
-
-
 ####################################################################################################
-# GLOBAL FUNCTIONS                                                                                 #
+# Public Functions                                                                                 #
 ####################################################################################################
 
 
@@ -429,7 +376,6 @@ def cv_init(detect_fingers: bool = True, detect_cds: bool = True) -> None:
 ### Detect centroids (finger presses) and return list
 def cv_loop() -> DetectedCentroids:
     global fps, frame_count, start_time
-
     ret, frame = capture.read()
 
     retVal = DetectedCentroids([], [], False)
@@ -448,8 +394,6 @@ def cv_loop() -> DetectedCentroids:
 
     retVal.fingers = _run_detection(diff, FINGER_PARAMS)
     retVal.cds = _run_detection(diff, CD_PARAMS)
-    if len(retVal.cds) == N_TANGIBLES:
-        retVal.cds = _idCD(retVal.cds)
 
     frame_count += 1
     current_time = time.time()
@@ -471,23 +415,9 @@ def cv_loop() -> DetectedCentroids:
         for centroid in retVal.fingers:
             cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 255, 0), 2)
             cv2.circle(frame, (centroid.xpos, centroid.ypos), 5, (0, 255, 255), -1)
-        centroidNum = 0
         for centroid in retVal.cds:
-            cv2.circle(frame, (centroid.xpos, centroid.ypos), 5, (0, 0, 255), -1)
-            if centroidNum == 0:
-                cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 0, 255), 2)
-            elif centroidNum == 1:
-                cv2.drawContours(frame, [centroid.contour_hull], 0, (0, 255, 255), 2)
-            else:
-                cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 0, 0), 2)
-            centroidNum += 1
-
-        if CFG_SHOW_HULL:
-            for centroid in retVal.cds:
-                cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 0, 255), 2)
-                cv2.circle(frame, (centroid.xpos, centroid.ypos), 5, (0, 255, 255), -1)
-                txt = "Hull Area: " + str(cv2.contourArea(centroid.contour_hull))
-                cv2.putText(frame, txt, (centroid.xpos, centroid.ypos), *TEXT_OPTS)
+            cv2.drawContours(frame, [centroid.contour_hull], 0, (255, 0, 255), 2)
+            cv2.circle(frame, (centroid.xpos, centroid.ypos), 5, (0, 255, 255), -1)
 
     # Display original frame with detected centroids and the threshold image
     if standalone or CFG_SHOW_FRAME:
@@ -516,7 +446,7 @@ def main() -> None:
     global standalone
     standalone = True
 
-    cv_init(detect_fingers=True, detect_cds=True)
+    cv_init(detect_fingers=True, detect_cds=False)
 
     while True:
         cv_loop()
