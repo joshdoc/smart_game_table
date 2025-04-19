@@ -15,7 +15,7 @@
 # event that there are two finger presses in the corners of the table.                             #
 #                                                                                                  #
 # Optional Functions:                                                                              #
-# init() -> None                                                                                   #
+# init(_) -> None                                                                                  #
 # init is called once before the game loop.  Use this function to initialize globals, etc.         #
 #                                                                                                  #
 # deinit() -> int|None                                                                             #
@@ -76,9 +76,11 @@ def main() -> None:
     invalid_game_result: bool = False
 
     cv.cv_init(detect_fingers=True, detect_cds=True)
-    cur_game.init(GAMES)
+    cur_game.init((GAMES, None, None))
 
     while True:
+        prev_game_name: Optional[str] = None
+        prev_game_score: Optional[int] = None
         centroids = cv.cv_loop()
 
         dt = time.time() - prev_time
@@ -95,8 +97,11 @@ def main() -> None:
                     invalid_game_result = True
 
             elif cur_game.game_type == Game_t.SCORED:
-                if type(game_result) is int and game_result > cur_game.high_score:
-                    cur_game.update_high_score(game_result)
+                if type(game_result) is int:
+                    if game_result > cur_game.high_score:
+                        cur_game.update_high_score(game_result)
+                    prev_game_name = cur_game.name
+                    prev_game_score = game_result
                     cur_game = MENU
                 else:
                     invalid_game_result = True
@@ -107,7 +112,7 @@ def main() -> None:
             if invalid_game_result:
                 _game_return_type_error(cur_game, type(game_result))
 
-            cur_game.init(GAMES if cur_game == MENU else None)
+            cur_game.init((GAMES, prev_game_name, prev_game_score) if cur_game == MENU else None)
 
 
 if __name__ == "__main__":

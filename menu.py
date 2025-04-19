@@ -27,13 +27,46 @@ _menu_items: list[tuple[pygame.Rect, str, pygame.Surface]] = []
 ####################################################################################################
 
 
-def init(games: dict[str, Game]):
+def init(args: tuple[dict[str, Game], Optional[str], Optional[int]]):
     global _font, _screen, _menu_items
+
+    games: dict[str, Game] = args[0]
+    prev_game_name: Optional[str] = args[1]
+    prev_score: Optional[int] = args[2]
 
     pygame.init()
     _screen = pygame.display.set_mode((1400, 1050))
     pygame.display.set_caption("Select a Game")
     _font = pygame.font.SysFont("Arial", 32)
+
+    # Show score summary if available
+    if prev_game_name and prev_score is not None and prev_game_name in games:
+        _screen.fill((0, 0, 0))
+
+        game = games[prev_game_name]
+        summary_lines = [
+            f"{prev_game_name} Results",
+            f"Score: {prev_score}",
+            f"High Score: {game.high_score}",
+        ]
+
+        box_width, box_height = 600, 200
+        box_x = (_screen.get_width() - box_width) // 2
+        box_y = (_screen.get_height() - box_height) // 2
+        box_rect = pygame.Rect(box_x, box_y, box_width, box_height)
+
+        # Draw background box
+        pygame.draw.rect(_screen, (255, 255, 255), box_rect, border_radius=20)
+
+        # Render and draw text lines centered inside the box
+        for i, line in enumerate(summary_lines):
+            text_surface = _font.render(line, True, (0, 0, 0))
+            text_rect = text_surface.get_rect(center=(box_rect.centerx, box_rect.y + 40 + i * 50))
+            _screen.blit(text_surface, text_rect)
+
+        pygame.display.flip()
+        pygame.time.wait(5000)
+
     _screen.fill((0, 0, 0))
 
     _menu_items.clear()
