@@ -65,7 +65,10 @@ def init(args: tuple[dict[str, Game], Optional[str], Optional[int]]):
             _screen.blit(text_surface, text_rect)
 
         pygame.display.flip()
-        pygame.time.wait(5000)
+        pygame.time.wait(3000)
+    else:
+        # Avoid accidentally launching another game when escaping
+        pygame.time.wait(1000)
 
     _screen.fill((0, 0, 0))
 
