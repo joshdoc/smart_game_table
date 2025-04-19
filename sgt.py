@@ -98,7 +98,7 @@ def main() -> None:
                 if type(game_result) is int and game_result > cur_game.high_score:
                     cur_game.update_high_score(game_result)
                     cur_game = MENU
-                else:
+                elif type(game_result) is not int:
                     invalid_game_result = True
 
             else:
