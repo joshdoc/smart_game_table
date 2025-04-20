@@ -30,6 +30,15 @@ from sgt_types import Centroid, DetectedCentroids
 # TYPES                                                                                            #
 ####################################################################################################
 
+@dataclass
+class HoverParams:
+    inner_threshold:int
+    outer_threshold: int
+    offset: int
+    grid_size: int
+
+    hover_grid: cv2.typing.MatLike
+
 
 @dataclass
 class DetectionParameters:
@@ -120,6 +129,7 @@ CFG_USE_TRACKBARS: bool = False
 CFG_SHOW_CENTROIDS: bool = False
 # Show the thresholded frame
 CFG_SHOW_THRESH: bool = False
+CFG_SHOW_HOVER_THRESH: bool = True
 # Draw the detected hulls
 CFG_SHOW_HULL: bool = False
 
@@ -139,6 +149,9 @@ frame_count: int = 0
 fps: float = 0
 start_time: float = time.time()
 lastPos: list[tuple[int, int]] = []
+use_hover: bool = False
+
+hoversettings: HoverParams = None
 
 
 ####################################################################################################
@@ -179,7 +192,6 @@ def _reorder_corners(corners: np.ndarray) -> np.ndarray:
     new_corners[2][0][1] -= CUT_TOP
     new_corners[3][0][1] -= CUT_TOP
     return new_corners
-
 
 ### Get the corners of the table for cropping the image
 def _crop_bg(frame: np.ndarray) -> None:
@@ -430,6 +442,35 @@ def _idCD(cds: list[Centroid]) -> list[Centroid]:
 ####################################################################################################
 
 
+def toggle_hover(offset, inner_threshold=15, outer_threshold=15, scale_size=20):
+    global use_hover, hoversettings
+
+    if hoversettings is None:
+        hoversettings = HoverParams(inner_threshold,outer_threshold,offset,scale_size,np.ndarray(0))
+       
+    use_hover = True
+
+def detect_hover(img) -> cv2.typing.MatLike:
+    global hover
+    cropped_image = img[hoversettings.offset:HEIGHT-(2*hoversettings.offset), 0:WIDTH]
+    thresh = _threshold(cropped_image, hoversettings.inner_threshold, hoversettings.outer_threshold)
+
+    # Use morphological operations to remove small noise
+    #kernel = np.ones((3, 3), np.uint8)
+
+    #thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+    #thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
+    
+    img_temp = cv2.resize(thresh, (hoversettings.grid_size, hoversettings.grid_size), interpolation=cv2.INTER_AREA)     
+
+    if CFG_SHOW_HOVER_THRESH:
+        cv2.namedWindow("Hover Thresh", cv2.WINDOW_NORMAL)
+        cv2.setWindowProperty("Hover Thresh", cv2.WND_PROP_FULLSCREEN, 1)
+        cv2.imshow("Hover Thresh", img_temp)
+
+    return img_temp
+
 ### Initialize the program
 def cv_init(detect_fingers: bool = True, detect_cds: bool = True) -> None:
     _capture_init()
@@ -456,6 +497,7 @@ def cv_init(detect_fingers: bool = True, detect_cds: bool = True) -> None:
 ### Detect centroids (finger presses) and return list
 def cv_loop() -> DetectedCentroids:
     global fps, frame_count, start_time
+    global hoversettings, use_hover
 
     ret, frame = capture.read()
 
@@ -481,6 +523,9 @@ def cv_loop() -> DetectedCentroids:
 
     retVal.fingers = _run_detection(diff, FINGER_PARAMS)
     retVal.cds = _run_detection(diff, CD_PARAMS)
+    if use_hover:
+        print("running hover")
+        hoversettings.hover_grid = detect_hover(diff)
 
     # N_TANGIBLES should be configurable in init in the future
     if len(retVal.cds) == N_TANGIBLES:
@@ -555,6 +600,8 @@ def main() -> None:
     standalone = True
 
     cv_init(detect_fingers=True, detect_cds=True)
+
+    #toggle_hover(139, 15, 15, 20)
 
     while True:
         cv_loop()

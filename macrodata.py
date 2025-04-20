@@ -71,6 +71,7 @@ def init(_=None):
     pygame.display.set_caption("MDR")
 
     font = pygame.font.SysFont('Arial', 30)
+    cv.toggle_hover(OFFSET, 15, 15, GRID_SIZE)
 
 def deinit() -> int:
     pygame.quit()
@@ -146,8 +147,7 @@ def draw_grid(mouse_pos):
                         if (vibration_timers[i][j]>0):
                             vibration_timers[i][j] -= 1
                         label = pygame.font.SysFont('Arial', 30+6*vibrato_grid[i][j]).render(str(num), True, WHITE)
-                    if selected_numbers and (i,j) in selected_numbers:
-                        
+                    if good_selection and selected_numbers and (i,j) in selected_numbers:
                         label_rect = label.get_rect(center=(animation_idx[i][j][0]+20*random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]]), 
                                                             animation_idx[i][j][1]+20*random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])))
                     else:
@@ -220,6 +220,7 @@ def calculate_total_magnitude(sel_idx):
 select_silh = None
 x1 = y1 = 0 
 accuracy = 0
+good_selection = False
 
 
 def get_numbers_in_selection(selection_rect):
@@ -319,7 +320,7 @@ def animate_to_capture(rectDim, mousepos):
 def game_loop() -> None:
     global selection_rect, selection_start, prev_time, selected_numbers
     global selecting, select_silh, x1,y1, timer_selection, accuracy, box_selection
-    global animation_start_time, open_animation_active
+    global animation_start_time, open_animation_active, good_selection
 
     current_time = pygame.time.get_ticks()
 
@@ -366,6 +367,7 @@ def game_loop() -> None:
             box_selection = True
             if not animation_start_time:
                 animation_start_time = current_time
+            good_selection = True
         else:
             draw_centered_text_with_highlight("BAD!", selection_rect)
             if timer_selection and current_time - timer_selection > 2000:
@@ -408,7 +410,7 @@ def game_loop() -> None:
 
 
 def main() -> None:
-    #cv.cv_init(detect_fingers=True, detect_cds=False)
+    cv.cv_init(detect_fingers=True, detect_cds=False)
     init()
 
     #loop_res: Loop_Result_t = Loop_Result_t.CONTINUE
