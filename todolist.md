@@ -19,7 +19,13 @@ Todo-list:
 	- [x] crash on idcd
 - [ ] macrodata.py
     - [ ] Use highlighting instead of mouse hover
-    - [ ] Two tap boxing
-    - [ ] Boxing animation
+    - [ ] use tap instead of mouse click
+    - [x] Two tap boxing
+    - [x] Boxing animation
+    - [x] number animation
+    - [ ] pick box
+    - [ ] dissapear numbers once clicked again
+    - [ ] fill progress bars
+    - [ ] regenerate new numbers
     - [x] refactor to have init(), loop(), deinit()
 - [x] mouse.py
