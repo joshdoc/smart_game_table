@@ -16,6 +16,9 @@ import time
 import timeit
 import cv
 from typing import Any
+from sgt_types import DetectedCentroids, Loop_Result_t
+
+from cv2.typing import MatLike
 
 ####################################################################################################
 # Constants                                                                                        #
@@ -48,6 +51,8 @@ LUMON_PNG = pygame.transform.scale_by(LUMON_PNG, .12)
 
 ANIMATION_DURATION = 1000  # Total animation duration in milliseconds
 
+VIBRATION_EXAGGERATION = 8
+
 ####################################################################################################
 # Globals                                                                                          #
 ####################################################################################################
@@ -71,7 +76,7 @@ def init(_=None):
     pygame.display.set_caption("MDR")
 
     font = pygame.font.SysFont('Arial', 30)
-    cv.toggle_hover(OFFSET, 15, 15, GRID_SIZE)
+    
 
 def deinit() -> int:
     pygame.quit()
@@ -118,7 +123,7 @@ def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
 # Utility function to draw the grid of numbers
-def draw_grid(mouse_pos):
+def draw_grid():
     global vibrato_grid, selected_numbers
     vibrato_grid = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     for i in range(GRID_SIZE):
@@ -135,18 +140,19 @@ def draw_grid(mouse_pos):
                 if (y>OFFSET and y<HEIGHT-(2*OFFSET)):
                     num = numbers[i][j]
                     label = font.render(str(num), True, OFF_WHITE)
-                    if distance(mouse_pos[0], mouse_pos[1], x,y) < 100:
+                    #if distance(mouse_pos[0], mouse_pos[1], x,y) < 100:
+                    if hover_grid[i][j] > 100:
                         vibration_timers[i][j] = VIBRATION_DURATION
                         x += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         y += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
-                        label = pygame.font.SysFont('Arial', 30+6*vibrato_grid[i][j]).render(str(num), True, WHITE)
+                        label = pygame.font.SysFont('Arial', 30+VIBRATION_EXAGGERATION*vibrato_grid[i][j]).render(str(num), True, WHITE)
                     elif vibration_timers[i][j]:
                         # Apply vibration if the timer is active
                         x += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         y += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         if (vibration_timers[i][j]>0):
                             vibration_timers[i][j] -= 1
-                        label = pygame.font.SysFont('Arial', 30+6*vibrato_grid[i][j]).render(str(num), True, WHITE)
+                        label = pygame.font.SysFont('Arial', 30+VIBRATION_EXAGGERATION*vibrato_grid[i][j]).render(str(num), True, WHITE)
                     if good_selection and selected_numbers and (i,j) in selected_numbers:
                         label_rect = label.get_rect(center=(animation_idx[i][j][0]+20*random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]]), 
                                                             animation_idx[i][j][1]+20*random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])))
@@ -316,11 +322,21 @@ def animate_to_capture(rectDim, mousepos):
     for (i, j) in selected_numbers:
         animation_idx[i][j] = (mousepos[0],mousepos[1])
 
+hover_grid: MatLike
 
 def game_loop() -> None:
     global selection_rect, selection_start, prev_time, selected_numbers
     global selecting, select_silh, x1,y1, timer_selection, accuracy, box_selection
     global animation_start_time, open_animation_active, good_selection
+    global hover_grid
+
+    centroids: DetectedCentroids = cv.cv_loop()
+    if centroids and centroids.fingers:
+        assumed_f = centroids.fingers[0]
+    hover_grid = cv.get_hover_grid()
+
+    #assumed_f.xpos = x1
+    #assumed_f.ypos = y1
 
     current_time = pygame.time.get_ticks()
 
@@ -330,7 +346,7 @@ def game_loop() -> None:
     # Get the current mouse position
     mouse_pos = pygame.mouse.get_pos()
     
-    draw_grid(mouse_pos)
+    draw_grid()
 
     # Handle events
     for event in pygame.event.get():
@@ -394,11 +410,11 @@ def game_loop() -> None:
         pygame.draw.rect(window, OFF_WHITE, selection_rect, 2)
 
     # Render FPS
-    '''fps = clock.get_fps()
+    fps = clock.get_fps()
     fps_text = font.render(f'FPS: {int(fps)}', True, BLACK)
-    window.blit(fps_text, (10, HEIGHT - BIN_HEIGHT - 20))'''
+    window.blit(fps_text, (10, HEIGHT - BIN_HEIGHT - 20))
 
-    #draw_scanlines()
+    draw_scanlines()
     
     ## LIGHT MODE
     #light_mode()
@@ -411,6 +427,7 @@ def game_loop() -> None:
 
 def main() -> None:
     cv.cv_init(detect_fingers=True, detect_cds=False)
+    cv.toggle_hover(OFFSET, 15, 15, GRID_SIZE)
     init()
 
     #loop_res: Loop_Result_t = Loop_Result_t.CONTINUE

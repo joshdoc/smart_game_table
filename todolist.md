@@ -10,7 +10,7 @@ Todo-list:
 	- [x] reset handling
     - [x] refactor to have init(), loop(), deinit()
 - [ ] cv.py
-    - [ ] Hovering handler
+    - [x] Hovering handler
     - [x] add escape sequence to exit games
     - [ ] ensure all CFG constants set properly before demo
 - [x] hockey.py
@@ -18,7 +18,7 @@ Todo-list:
 	- [x] fix goal appearance spots
 	- [x] crash on idcd
 - [ ] macrodata.py
-    - [ ] Use highlighting instead of mouse hover
+    - [x] Use highlighting instead of mouse hover
     - [ ] use tap instead of mouse click
     - [x] Two tap boxing
     - [x] Boxing animation

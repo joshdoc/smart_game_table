@@ -129,7 +129,7 @@ CFG_USE_TRACKBARS: bool = False
 CFG_SHOW_CENTROIDS: bool = False
 # Show the thresholded frame
 CFG_SHOW_THRESH: bool = False
-CFG_SHOW_HOVER_THRESH: bool = True
+CFG_SHOW_HOVER_THRESH: bool = False
 # Draw the detected hulls
 CFG_SHOW_HULL: bool = False
 
@@ -450,7 +450,12 @@ def toggle_hover(offset, inner_threshold=15, outer_threshold=15, scale_size=20):
        
     use_hover = True
 
+def get_hover_grid():
+    return hoversettings.hover_grid
+
 def detect_hover(img) -> cv2.typing.MatLike:
+    if (not use_hover):
+        print("hover not config'd!")
     global hover
     cropped_image = img[hoversettings.offset:HEIGHT-(2*hoversettings.offset), 0:WIDTH]
     thresh = _threshold(cropped_image, hoversettings.inner_threshold, hoversettings.outer_threshold)
@@ -524,7 +529,7 @@ def cv_loop() -> DetectedCentroids:
     retVal.fingers = _run_detection(diff, FINGER_PARAMS)
     retVal.cds = _run_detection(diff, CD_PARAMS)
     if use_hover:
-        print("running hover")
+        #print("running hover")
         hoversettings.hover_grid = detect_hover(diff)
 
     # N_TANGIBLES should be configurable in init in the future
@@ -601,7 +606,7 @@ def main() -> None:
 
     cv_init(detect_fingers=True, detect_cds=True)
 
-    #toggle_hover(139, 15, 15, 20)
+    toggle_hover(139, 15, 15, 20)
 
     while True:
         cv_loop()
