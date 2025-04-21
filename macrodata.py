@@ -252,7 +252,7 @@ def draw_bg() -> Loop_Result_t:
     pygame.draw.rect(window, thisColor, pygame.Rect(250+BIN_WIDTH,880+50+nxtboxoffset,300,40), 3, -1 )
     pygame.draw.rect(window, thisColor, pygame.Rect(250+BIN_WIDTH,880+50+nxtboxoffset,min(1,progressbars[1])*300,40), 0, -1 )
     thisColor = OFF_WHITE
-    if (progressbars[0] >= 1):
+    if (progressbars[2] >= 1):
         thisColor=BLUE
     pygame.draw.rect(window, thisColor, pygame.Rect(350+2*+BIN_WIDTH,880+50+nxtboxoffset,300,40), 3, -1 )
     pygame.draw.rect(window, thisColor, pygame.Rect(350+2*+BIN_WIDTH,880+50+nxtboxoffset,min(1,progressbars[2])*300,40), 0, -1 )
