@@ -71,6 +71,7 @@ def init(_=None):
     pygame.init()
 
     clock = pygame.time.Clock()
+    cv.toggle_hover(OFFSET, 15, 15, GRID_SIZE)
 
     window = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("MDR")
@@ -122,8 +123,23 @@ def vibrato(magnitude:int, x, y):
 def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
-# Utility function to draw the grid of numbers
 def draw_grid():
+    for i in range(GRID_SIZE):
+        for j in range(GRID_SIZE):
+            x = j * CELL_SIZE
+            y = i * CELL_SIZE  
+            if (y>OFFSET and y<HEIGHT-(2*OFFSET)):
+                num = numbers[i][j]
+                label = font.render(str(num), True, OFF_WHITE)
+                if hover_grid[i][j] > 100:
+                    x += random.choice([-1 * VIBRATION_EXAGGERATION, 0, VIBRATION_EXAGGERATION])
+                    y += random.choice([-1 * VIBRATION_EXAGGERATION, 0, VIBRATION_EXAGGERATION])
+                    label = pygame.font.SysFont('Arial', 30+VIBRATION_EXAGGERATION).render(str(num), True, WHITE)
+                label_rect = label.get_rect(center=(x + CELL_SIZE / 2, y + CELL_SIZE / 2))
+                window.blit(label, label_rect.topleft)
+
+# Utility function to draw the grid of numbers
+'''def draw_grid():
     global vibrato_grid, selected_numbers
     vibrato_grid = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     for i in range(GRID_SIZE):
@@ -140,13 +156,13 @@ def draw_grid():
                 if (y>OFFSET and y<HEIGHT-(2*OFFSET)):
                     num = numbers[i][j]
                     label = font.render(str(num), True, OFF_WHITE)
-                    #if distance(mouse_pos[0], mouse_pos[1], x,y) < 100:
                     if hover_grid[i][j] > 100:
                         vibration_timers[i][j] = VIBRATION_DURATION
                         x += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         y += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         label = pygame.font.SysFont('Arial', 30+VIBRATION_EXAGGERATION*vibrato_grid[i][j]).render(str(num), True, WHITE)
-                    elif vibration_timers[i][j]:
+                    
+                        elif vibration_timers[i][j]:
                         # Apply vibration if the timer is active
                         x += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         y += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
@@ -160,6 +176,7 @@ def draw_grid():
                         label_rect = label.get_rect(center=(x + CELL_SIZE / 2, y + CELL_SIZE / 2))
                     window.blit(label, label_rect.topleft)
                     #window.blit(label, (x + CELL_SIZE // 4, y + CELL_SIZE // 2))
+'''
 
 def draw_scanlines():
     scanline_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -186,7 +203,7 @@ def draw_bg():
     #TOP BOX
     pygame.draw.line(window, OFF_WHITE, (0,HEIGHT-1.5*OFFSET+15) , (WIDTH, HEIGHT-1.5*OFFSET+15), 3)
     pygame.draw.line(window, OFF_WHITE, (0,HEIGHT-1.5*OFFSET+2*15) , (WIDTH, HEIGHT-1.5*OFFSET+30), 3)
-    #pygame.draw.rect(window, OFF_WHITE, pygame.Rect(150,880,300,50), 3, -1 )
+    pygame.draw.rect(window, OFF_WHITE, pygame.Rect(150,880,300,50), 3, -1 )
     txt = font.render('01', True, OFF_WHITE)
     window.blit(txt, (150+300/2-12, 880+50/2-20))
     pygame.draw.rect(window, OFF_WHITE, pygame.Rect(250+BIN_WIDTH,880,300,50), 3, -1 )
@@ -324,11 +341,14 @@ def animate_to_capture(rectDim, mousepos):
 
 hover_grid: MatLike
 
-def game_loop() -> None:
+def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
+    
     global selection_rect, selection_start, prev_time, selected_numbers
     global selecting, select_silh, x1,y1, timer_selection, accuracy, box_selection
     global animation_start_time, open_animation_active, good_selection
     global hover_grid
+
+    draw_bg()
 
     centroids: DetectedCentroids = cv.cv_loop()
     if centroids and centroids.fingers:
@@ -410,9 +430,9 @@ def game_loop() -> None:
         pygame.draw.rect(window, OFF_WHITE, selection_rect, 2)
 
     # Render FPS
-    fps = clock.get_fps()
+    '''fps = clock.get_fps()
     fps_text = font.render(f'FPS: {int(fps)}', True, BLACK)
-    window.blit(fps_text, (10, HEIGHT - BIN_HEIGHT - 20))
+    window.blit(fps_text, (10, HEIGHT - BIN_HEIGHT - 20))'''
 
     draw_scanlines()
     
@@ -423,18 +443,19 @@ def game_loop() -> None:
 
     # Cap the frame rate to 60 frames per second
     clock.tick(30)
+    return Loop_Result_t.CONTINUE
 
 
 def main() -> None:
     cv.cv_init(detect_fingers=True, detect_cds=False)
-    cv.toggle_hover(OFFSET, 15, 15, GRID_SIZE)
+    
     init()
 
     #loop_res: Loop_Result_t = Loop_Result_t.CONTINUE
 
     while True:
         draw_bg()
-        game_loop()
+        loop()
 
 
     deinit()

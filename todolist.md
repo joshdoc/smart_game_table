@@ -1,4 +1,7 @@
 Todo-list:
+- [ ] PRESSING
+    - [ ] sgt.py ... seems to break if you run more than one game?
+    - [ ] escaping doesn't really work.
 - [x] sgt.py
     - [x] integrate scoring display with menu
 - [x] menu.py

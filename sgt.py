@@ -44,8 +44,9 @@ UNDERTABLE = Game(name="undertable_touch", game_type=Game_t.SCORED)
 HOCKEY = Game(name="hockey", game_type=Game_t.UNSCORED)
 DOTS = Game(name="dots", game_type=Game_t.SCORED)
 MOUSE = Game(name="mouse", game_type=Game_t.UNSCORED)
+MACRODAT = Game(name="macrodata", game_type=Game_t.UNSCORED)
 
-GAMES = {game.name: game for game in [DOTS, HOCKEY, UNDERTABLE, MOUSE]}
+GAMES = {game.name: game for game in [DOTS, HOCKEY, UNDERTABLE, MOUSE, MACRODAT]}
 
 
 ####################################################################################################

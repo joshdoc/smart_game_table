@@ -606,7 +606,7 @@ def main() -> None:
 
     cv_init(detect_fingers=True, detect_cds=True)
 
-    toggle_hover(139, 15, 15, 20)
+    #toggle_hover(139, 15, 15, 20)
 
     while True:
         cv_loop()
