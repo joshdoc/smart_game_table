@@ -61,7 +61,7 @@ CAM_IDX: int = 0
 CROP: tuple[slice, slice] = (slice(0, 1), slice(0, 1))
 
 CROP_SCALE: float = 0.975  # scale the cropped image
-CROP_MIN_THRESH: int = 10  # threshold for detecting the edges
+CROP_MIN_THRESH: int = 80  # threshold for detecting the edges
 
 # define screen size for warping the image
 WIDTH = 1400
@@ -107,6 +107,8 @@ CD_PARAMS = DetectionParameters(
 # Text options
 TEXT_OPTS = [cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2]
 
+Y_SCALE_FACTOR: float = 1.000
+
 
 ####################################################################################################
 # CONFIGURATION                                                                                    #
@@ -124,11 +126,11 @@ CFG_SHOW_FRAME: bool = False
 # Show FPS in frame (each call to cv_loop)
 CFG_SHOW_FPS: bool = True
 # Use the trackbars for settings
-CFG_USE_TRACKBARS: bool = False
+CFG_USE_TRACKBARS: bool = True
 # draw the contours on the frame
-CFG_SHOW_CENTROIDS: bool = False
+CFG_SHOW_CENTROIDS: bool = True
 # Show the thresholded frame
-CFG_SHOW_THRESH: bool = False
+CFG_SHOW_THRESH: bool = True
 CFG_SHOW_HOVER_THRESH: bool = False
 # Draw the detected hulls
 CFG_SHOW_HULL: bool = False
@@ -138,12 +140,11 @@ CFG_SHOW_HULL: bool = False
 # GLOBALS                                                                                          #
 ####################################################################################################
 
-
 corners: np.ndarray = np.zeros(0)
 standalone: bool = False
 capture: cv2.VideoCapture = cv2.VideoCapture()
 bg: np.ndarray = np.zeros(0)
-current_margin: int = 15
+current_margin: int = 25
 
 frame_count: int = 0
 fps: float = 0
@@ -328,12 +329,15 @@ def _threshold(diff: np.ndarray, inner_thresh, outer_thresh) -> np.ndarray:
     return thresh
 
 
-def _top_left_corner_correction(x: int, y: int) -> tuple[int, int]:
+def _corner_corrections(x: int, y: int) -> tuple[int, int]:
     if x < 200 and y < 200:
         x -= 10
         y -= 10
     elif x < 800 and y < 200:
         x -= 10
+    if x > WIDTH - 200 and y < 200:
+        x -= 10
+        y -= 10
     return x, y
 
 
@@ -380,8 +384,8 @@ def _detect_centroids(contours: Sequence[MatLike], min_area: int, max_area: int)
             M = cv2.moments(cnt)
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                cX, cY = _top_left_corner_correction(cX, cY)
+                cY = int(Y_SCALE_FACTOR * M["m01"] / M["m00"]) + 15
+                cX, cY = _corner_corrections(cX, cY)
 
                 centroids.append(Centroid(cX, cY, hull))
 

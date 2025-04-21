@@ -101,7 +101,7 @@ def read_webcam(camera_index=0, width=640, height=480, show_fps=False):
             cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 40, 255, cv2.THRESH_BINARY)
+        _, thresh = cv2.threshold(gray, 80, 255, cv2.THRESH_BINARY)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # largest contour is the table
