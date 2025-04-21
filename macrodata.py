@@ -16,7 +16,7 @@ import time
 import timeit
 import cv
 from typing import Any
-from sgt_types import DetectedCentroids, Loop_Result_t
+from sgt_types import DetectedCentroids, Loop_Result_t, Centroid
 
 from cv2.typing import MatLike
 
@@ -33,6 +33,7 @@ BIN_COUNT = 4  # Number of bins
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 OFF_WHITE = (237, 253, 255)
+BLUE = (0,0,150)
 
 # Vibrato
 MAX_MAGNITUDE = 3
@@ -123,7 +124,7 @@ def vibrato(magnitude:int, x, y):
 def distance(x1, y1, x2, y2):
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
-def draw_grid():
+'''def draw_grid():
     for i in range(GRID_SIZE):
         for j in range(GRID_SIZE):
             x = j * CELL_SIZE
@@ -136,10 +137,23 @@ def draw_grid():
                     y += random.choice([-1 * VIBRATION_EXAGGERATION, 0, VIBRATION_EXAGGERATION])
                     label = pygame.font.SysFont('Arial', 30+VIBRATION_EXAGGERATION).render(str(num), True, WHITE)
                 label_rect = label.get_rect(center=(x + CELL_SIZE / 2, y + CELL_SIZE / 2))
-                window.blit(label, label_rect.topleft)
+                window.blit(label, label_rect.topleft)'''
 
-# Utility function to draw the grid of numbers
-'''def draw_grid():
+
+
+def top_leftmost(x1, y1, x2, y2):
+    if (y1 < y2) or (y1 == y2 and x1 < x2):
+        return (x1, y1)
+    else:
+        return (x2, y2)# Utility function to draw the grid of numbers
+def oppositeTopLeft(x1, y1, x2, y2):
+    if (y1 < y2) or (y1 == y2 and x1 < x2):
+        return (x2, y2)
+    else:
+        return (x1, y1)# Utility function to draw the grid of numbers
+    
+
+def draw_grid():
     global vibrato_grid, selected_numbers
     vibrato_grid = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     for i in range(GRID_SIZE):
@@ -161,22 +175,22 @@ def draw_grid():
                         x += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         y += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         label = pygame.font.SysFont('Arial', 30+VIBRATION_EXAGGERATION*vibrato_grid[i][j]).render(str(num), True, WHITE)
-                    
-                        elif vibration_timers[i][j]:
+
+                    elif vibration_timers[i][j]:
                         # Apply vibration if the timer is active
                         x += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         y += random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])
                         if (vibration_timers[i][j]>0):
                             vibration_timers[i][j] -= 1
                         label = pygame.font.SysFont('Arial', 30+VIBRATION_EXAGGERATION*vibrato_grid[i][j]).render(str(num), True, WHITE)
-                    if good_selection and selected_numbers and (i,j) in selected_numbers:
+                    '''if good_selection and selected_numbers and (i,j) in selected_numbers:
                         label_rect = label.get_rect(center=(animation_idx[i][j][0]+20*random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]]), 
-                                                            animation_idx[i][j][1]+20*random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])))
-                    else:
-                        label_rect = label.get_rect(center=(x + CELL_SIZE / 2, y + CELL_SIZE / 2))
+                                                            animation_idx[i][j][1]+20*random.choice([-1 * vibrato_grid[i][j], 0, vibrato_grid[i][j]])))'''
+                    
+                    label_rect = label.get_rect(center=(x + CELL_SIZE / 2, y + CELL_SIZE / 2))
                     window.blit(label, label_rect.topleft)
                     #window.blit(label, (x + CELL_SIZE // 4, y + CELL_SIZE // 2))
-'''
+
 
 def draw_scanlines():
     scanline_surface = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -193,12 +207,25 @@ def draw_scanlines():
     # Overlay the scanlines at the very end
     window.blit(scanline_surface, (0, 0))#, special_flags=pygame.BLEND_ADD)
 
-def draw_bg():
+
+progressbars = [0,0,0]
+
+
+def draw_bg() -> Loop_Result_t:
+    res = Loop_Result_t.CONTINUE
     window.fill(BLACK)
     #HEADER
     pygame.draw.line(window, OFF_WHITE, (0,OFFSET) , (WIDTH, OFFSET), 3)
     pygame.draw.line(window, OFF_WHITE, (0,OFFSET-15) , (WIDTH, OFFSET-15), 3)
     pygame.draw.rect(window, OFF_WHITE, pygame.Rect(82,33,1200,60), 3, -1 )
+    
+    avg = (progressbars[0] + progressbars[1] + progressbars[2]) /3
+    thisColor = OFF_WHITE
+    if ( avg >= 1):
+        thisColor=BLUE
+        res = Loop_Result_t.EXIT
+    pygame.draw.rect(window, thisColor, pygame.Rect(82,33,avg*1200,60), 0, -1 )
+    
     window.blit(LUMON_PNG, (1150,0))
     #TOP BOX
     pygame.draw.line(window, OFF_WHITE, (0,HEIGHT-1.5*OFFSET+15) , (WIDTH, HEIGHT-1.5*OFFSET+15), 3)
@@ -214,13 +241,28 @@ def draw_bg():
     window.blit(txt, (350+BIN_WIDTH*2+300/2-12, 880+50/2-20))
     nxtboxoffset=9
     #PROGRESS BOXES
-    pygame.draw.rect(window, OFF_WHITE, pygame.Rect(150,880+50+nxtboxoffset,300,40), 3, -1 )
-    pygame.draw.rect(window, OFF_WHITE, pygame.Rect(250+BIN_WIDTH,880+50+nxtboxoffset,300,40), 3, -1 )
-    pygame.draw.rect(window, OFF_WHITE, pygame.Rect(350+2*+BIN_WIDTH,880+50+nxtboxoffset,300,40), 3, -1 )
+    thisColor = OFF_WHITE
+    if (progressbars[0] >= 1):
+        thisColor=BLUE
+    pygame.draw.rect(window, thisColor, pygame.Rect(150,880+50+nxtboxoffset,300,40), 3, -1 )
+    pygame.draw.rect(window, thisColor, pygame.Rect(150,880+50+nxtboxoffset,min(1,progressbars[0])*300,40), 0, -1 )
+    thisColor = OFF_WHITE
+    if (progressbars[1] >= 1):
+        thisColor=BLUE
+    pygame.draw.rect(window, thisColor, pygame.Rect(250+BIN_WIDTH,880+50+nxtboxoffset,300,40), 3, -1 )
+    pygame.draw.rect(window, thisColor, pygame.Rect(250+BIN_WIDTH,880+50+nxtboxoffset,min(1,progressbars[1])*300,40), 0, -1 )
+    thisColor = OFF_WHITE
+    if (progressbars[0] >= 1):
+        thisColor=BLUE
+    pygame.draw.rect(window, thisColor, pygame.Rect(350+2*+BIN_WIDTH,880+50+nxtboxoffset,300,40), 3, -1 )
+    pygame.draw.rect(window, thisColor, pygame.Rect(350+2*+BIN_WIDTH,880+50+nxtboxoffset,min(1,progressbars[2])*300,40), 0, -1 )
     
+
     pygame.draw.rect(window, OFF_WHITE, pygame.Rect(0,880+50+nxtboxoffset+40+10,WIDTH,100), 100, -1)
     hex = font.render('0x6AF307 : 0x38A687', True, BLACK)
     window.blit(hex, (566, 993))
+    return res
+    
     
 def light_mode():
     pixels = pygame.surfarray.pixels2d(window)
@@ -321,8 +363,10 @@ def animate_box(rectDim):
             # Draw the opening box top edges
             pygame.draw.line(window, WHITE, left_edge_start, left_line_end, 3)
             pygame.draw.line(window, WHITE, right_edge_start, right_line_end, 3)
+            return True
         else:
             open_animation_active = False
+            return False
 
 
 # Function to animate moving numbers to a target
@@ -340,19 +384,25 @@ def animate_to_capture(rectDim, mousepos):
         animation_idx[i][j] = (mousepos[0],mousepos[1])
 
 hover_grid: MatLike
+last_finger: Centroid = None
+savex1 = None
+savey1 = None
+savex2 = None
+savey2 = None
+start_animation = False
 
 def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
     
     global selection_rect, selection_start, prev_time, selected_numbers
     global selecting, select_silh, x1,y1, timer_selection, accuracy, box_selection
-    global animation_start_time, open_animation_active, good_selection
-    global hover_grid
+    global animation_start_time, open_animation_active, good_selection, start_animation
+    global hover_grid, last_finger, savex1,savey1,savex2,savey2, vibrating_indices, progressbars
 
-    draw_bg()
+    if draw_bg() == Loop_Result_t.EXIT:
+        return Loop_Result_t.EXIT
 
-    centroids: DetectedCentroids = cv.cv_loop()
-    if centroids and centroids.fingers:
-        assumed_f = centroids.fingers[0]
+    #centroids: DetectedCentroids = cv.cv_loop()
+    
     hover_grid = cv.get_hover_grid()
 
     #assumed_f.xpos = x1
@@ -368,28 +418,40 @@ def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
     
     draw_grid()
 
+    #if centroids and centroids.fingers:
+    #    pygame.draw.circle(window, (0,150,150), (centroids.fingers[0].xpos,centroids.fingers[0].ypos), 10)
+
+
+    if not box_selection and centroids and centroids.fingers:
+        assumed_f = centroids.fingers[0]
+        if last_finger is None or distance(assumed_f.xpos, assumed_f.ypos, last_finger.xpos, last_finger.ypos) > 40:
+            if not selecting:
+                x1 = savex1 = assumed_f.xpos
+                y1 = savey1 = assumed_f.ypos
+                
+                #print("x1,y1:", x1,y1)
+            elif selecting:    
+                x2 = savex2 = assumed_f.xpos
+                y2 = savey2 = assumed_f.ypos
+                pygame.draw.circle(window, OFF_WHITE, (x1,y1), 10)
+                actualX1, actualY1 = top_leftmost(x1,y1,x2,y2)
+                actualX2, actualY2 = oppositeTopLeft(x1,y1,x2,y2)
+                selection_rect = pygame.Rect(actualX1, actualY1, actualX2 - actualX1, actualY2 - actualY1)
+                selected_numbers = get_numbers_in_selection(selection_rect)
+                print("Selected numbers:", selected_numbers)
+                timer_selection = current_time  # Start timer    
+                #print("x2,y2:", x2,y2)
+            selecting = not selecting
+        last_finger = assumed_f
+    
+    if savex1 and savey1:
+        pygame.draw.circle(window, BLUE, (savex1,savey1), 10)
+    if savex2 and savey2:
+        pygame.draw.circle(window, OFF_WHITE, (savex2,savey2), 10)
+
     # Handle events
     for event in pygame.event.get():
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if not box_selection and event.button == 1:  # Left mouse button
-                selection_start = event.pos
-                if not selecting:
-                    x1, y1 = selection_start
-                elif selecting:    
-                    x2, y2 = event.pos
-                    selection_rect = pygame.Rect(x1, y1, x2 - x1, y2 - y1)
-                    selected_numbers = get_numbers_in_selection(selection_rect)
-                    print("Selected numbers:", selected_numbers)
-                    timer_selection = current_time  # Start timer
-                
-                selecting = not selecting
-        elif event.type == pygame.MOUSEMOTION:
-            if selecting and selection_start:
-                x1, y1 = selection_start
-                x2, y2 = event.pos
-                if selecting:
-                    select_silh=pygame.Rect(x1, y1, x2 - x1, y2 - y1)
-        elif event.type == pygame.QUIT:
+        if event.type == pygame.QUIT:
             quit = True
             pygame.quit()
             sys.exit()
@@ -399,28 +461,47 @@ def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
 
     if not selecting and selection_rect:
         if (accuracy > 0.68):
-            draw_centered_text_with_highlight("GOOD! Pick a box!", selection_rect)
+            draw_centered_text_with_highlight("GOOD!", selection_rect)
             box_selection = True
-            if not animation_start_time:
-                animation_start_time = current_time
             good_selection = True
         else:
-            draw_centered_text_with_highlight("BAD!", selection_rect)
+            #draw_centered_text_with_highlight("WRONG!", selection_rect)
             if timer_selection and current_time - timer_selection > 2000:
                 timer_selection = None
                 selection_rect = None
                 selected_numbers = None
+                last_finger = None
                 accuracy = 0
 
-    while box_selection:      
+    if box_selection:      
         #pick box, set rectDim equal to box picked
-        rectDim = (150,880,300,50)
-        box_selection= False
-        if not box_selection:
-            animate_box(rectDim)
-            animate_to_capture(rectDim,mouse_pos)   
-        #dissapear numbers once box clicked again
-        #fill progress bar for box
+        rectDim = (9,9,9,9)
+        boxes = [ pygame.Rect(150,880,300,50), pygame.Rect(250+BIN_WIDTH,880,300,50), pygame.Rect(250+2*BIN_WIDTH,880,300,50)]
+        if centroids and centroids.fingers:
+            assumed_f = centroids.fingers[0]
+            for idx, box in enumerate(boxes):
+                if box.collidepoint(assumed_f.xpos, assumed_f.ypos):
+                    rectDim= (150,880,300,50)
+                    pygame.draw.rect(window, BLUE, box, 3, -1 )
+                    box_selection = False
+                    for i,j in selected_numbers:
+                        numbers[i][j] = random.randint(0, 9)
+                    vibrating_indices = random.sample(range(GRID_SIZE * GRID_SIZE), VIBRATORS)
+                    timer_selection = None
+                    selection_rect = None
+                    selected_numbers = None
+                    last_finger = None
+                    accuracy = 0
+                    progressbars[idx] += .25
+
+                        
+
+                    
+                        
+        
+    
+    #dissapear numbers once box clicked again
+    #fill progress bar for box
         
     
     #regenerate new numbers and vibration indices
@@ -430,14 +511,16 @@ def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
         pygame.draw.rect(window, OFF_WHITE, selection_rect, 2)
 
     # Render FPS
-    '''fps = clock.get_fps()
+    fps = clock.get_fps()
     fps_text = font.render(f'FPS: {int(fps)}', True, BLACK)
-    window.blit(fps_text, (10, HEIGHT - BIN_HEIGHT - 20))'''
+    window.blit(fps_text, (10, HEIGHT - BIN_HEIGHT - 20))
 
     draw_scanlines()
     
     ## LIGHT MODE
     #light_mode()
+
+    
 
     pygame.display.flip()
 

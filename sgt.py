@@ -30,6 +30,7 @@
 
 import time
 from typing import Optional
+import os
 
 import cv
 from sgt_types import Game, Game_t, Loop_Result_t
@@ -45,6 +46,7 @@ HOCKEY = Game(name="hockey", game_type=Game_t.UNSCORED)
 DOTS = Game(name="dots", game_type=Game_t.SCORED)
 MOUSE = Game(name="mouse", game_type=Game_t.UNSCORED)
 MACRODAT = Game(name="macrodata", game_type=Game_t.UNSCORED)
+DEBUG = Game(name="debug", game_type=Game_t.UNSCORED)
 
 GAMES = {game.name: game for game in [DOTS, HOCKEY, UNDERTABLE, MOUSE, MACRODAT]}
 
@@ -75,6 +77,11 @@ def main() -> None:
     loop_result: Loop_Result_t = Loop_Result_t.CONTINUE
     game_result: Optional[int | str] = None
     invalid_game_result: bool = False
+
+    if (cur_game.name == "debug"):
+        os.system('cv.py')
+        cur_game = MENU
+
 
     cv.cv_init(detect_fingers=True, detect_cds=True)
     cur_game.init((GAMES, None, None))
