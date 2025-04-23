@@ -1,22 +1,27 @@
+####################################################################################################
+# IMPORTS                                                                                          #
+####################################################################################################
+
 import pyglet
 import random
 import math
 import time
+from enum import Enum
+import numpy as np
 from pyglet.window import key, mouse
+import cv as cv
+from dataclasses import dataclass
+from sgt_types import Centroid, DetectedCentroids, Loop_Result_t
 
-# ----------------------------
-# Load Custom Font
-# ----------------------------
-pyglet.font.add_file("graphics/PressStart2P.ttf")
+####################################################################################################
+# CONSTANTS                                                                                        #
+####################################################################################################
 
-# ----------------------------
-# Base Configuration Options
-# ----------------------------
 BASE_PROBE_PROJECTILE_SPEED_RANGE    = (250, 350)
 BASE_PROBE_PROJECTILE_DISTANCE_RANGE = (400, 500)
 BASE_PROBE_DELAY_RANGE               = (0.3, 0.7)
 BASE_PROBE_VARIABILITY_RANGE         = (10, 30)
-BASE_PROBE_SPAWN_RATE                = 1.0
+BASE_PROBE_SPAWN_RATE                = 1.0 
 PROBE_FADE_DURATION                  = 0.3
 PROBE_BOUNDARY_INSET                 = 50
 
@@ -44,9 +49,16 @@ BASE_CAPACITOR_SPAWN_RATE            = 0.75
 BASE_CAPACITOR_SPEED                 = 200
 CAPACITOR_ROTATION_SPEED             = 180
 
-# ----------------------------
-# Live (score‐dependent) globals
-# ----------------------------
+####################################################################################################
+# GLOBALS                                                                                          #
+####################################################################################################
+
+# Enable mouse input
+
+mouse_debug = False
+
+# Score-dependent globals
+
 PROBE_PROJECTILE_SPEED_RANGE    = BASE_PROBE_PROJECTILE_SPEED_RANGE
 PROBE_PROJECTILE_DISTANCE_RANGE = BASE_PROBE_PROJECTILE_DISTANCE_RANGE
 PROBE_DELAY_RANGE               = BASE_PROBE_DELAY_RANGE
@@ -59,111 +71,8 @@ PULSE_SPEED                     = BASE_PULSE_SPEED
 CAPACITOR_SPAWN_RATE            = BASE_CAPACITOR_SPAWN_RATE
 CAPACITOR_SPEED                 = BASE_CAPACITOR_SPEED
 
-# ----------------------------
-# Window & Game Setup
-# ----------------------------
-window = pyglet.window.Window(fullscreen=True)
-WIDTH, HEIGHT = window.width, window.height
-window.set_caption("Undertable")
+# Game state globals
 
-# ----------------------------
-# Score & HUD
-# ----------------------------
-score = 0
-score_label = pyglet.text.Label(
-    text="0",
-    font_name="Press Start 2P",
-    font_size=50,
-    x=1315, y=HEIGHT - 230,
-    anchor_x="center", anchor_y="center",
-    color=(255, 255, 255, 255)
-)
-original_score_x = score_label.x
-original_score_y = score_label.y
-
-# ----------------------------
-# Load Images
-# ----------------------------
-title_image             = pyglet.image.load("graphics/undertable_title.png")
-player_image            = pyglet.image.load("graphics/player.png")
-player_jump_image       = pyglet.image.load("graphics/player_jump.png")
-player_shield_image     = pyglet.image.load("graphics/player_shield.png")
-boundary_image          = pyglet.image.load("graphics/boundary.png")
-boss_left_image         = pyglet.image.load("graphics/boss_left.png")
-boss_center_image       = pyglet.image.load("graphics/boss_center.png")
-boss_right_image        = pyglet.image.load("graphics/boss_right.png")
-boss_body_image         = pyglet.image.load("graphics/boss_body.png")
-health_3_image          = pyglet.image.load("graphics/lives_3.png")
-health_2_image          = pyglet.image.load("graphics/lives_2.png")
-health_1_image          = pyglet.image.load("graphics/lives_1.png")
-health_3_jump_image     = pyglet.image.load("graphics/lives_3_jump.png")
-health_2_jump_image     = pyglet.image.load("graphics/lives_2_jump.png")
-health_1_jump_image     = pyglet.image.load("graphics/lives_1_jump.png")
-health_3_shield_image   = pyglet.image.load("graphics/lives_shield_3.png")
-health_2_shield_image   = pyglet.image.load("graphics/lives_shield_2.png")
-health_1_shield_image   = pyglet.image.load("graphics/lives_shield_1.png")
-red_probe_image         = pyglet.image.load("graphics/red_probe.png")
-black_probe_image       = pyglet.image.load("graphics/black_probe.png")
-oscilloscope_image      = pyglet.image.load("graphics/oscilloscope.png")
-large_oscilloscope_image= pyglet.image.load("graphics/large_oscilloscope.png")
-shield_image            = pyglet.image.load("graphics/shield.png")
-pulse_thin_image        = pyglet.image.load("graphics/pulse_thin.png")
-pulse_wide_image        = pyglet.image.load("graphics/pulse_wide.png")
-capacitor_image         = pyglet.image.load("graphics/capacitor.png")
-
-# ----------------------------
-# Set Anchor Points
-# ----------------------------
-for img in [
-    title_image, player_image, player_jump_image, player_shield_image, boundary_image,
-    boss_left_image, boss_center_image, boss_right_image, boss_body_image,
-    health_3_image, health_2_image, health_1_image,
-    health_3_jump_image, health_2_jump_image, health_1_jump_image,
-    health_3_shield_image, health_2_shield_image, health_1_shield_image,
-    red_probe_image, black_probe_image,
-    oscilloscope_image, large_oscilloscope_image, shield_image,
-    pulse_thin_image, pulse_wide_image,
-    capacitor_image
-]:
-    img.anchor_x = img.width  // 2
-    img.anchor_y = img.height // 2
-
-# ----------------------------
-# Create Sprites
-# ----------------------------
-title_sprite               = pyglet.sprite.Sprite(title_image, x=WIDTH//2, y=HEIGHT//2)
-player_sprite              = pyglet.sprite.Sprite(player_image, x=WIDTH//2, y=HEIGHT//3)
-player_target_x            = player_sprite.x
-player_target_y            = player_sprite.y
-boundary_sprite            = pyglet.sprite.Sprite(boundary_image, x=WIDTH//2, y=HEIGHT//3)
-boss_sprite                = pyglet.sprite.Sprite(boss_center_image, x=WIDTH//2, y=HEIGHT - boss_center_image.height//2)
-oscilloscope_sprite        = pyglet.sprite.Sprite(oscilloscope_image, x=WIDTH*2//3 + 75, y=HEIGHT*4//5 - 25)
-large_oscilloscope_sprite  = pyglet.sprite.Sprite(large_oscilloscope_image, x=WIDTH//2, y=HEIGHT//2)
-boss_body_sprite  = pyglet.sprite.Sprite(boss_body_image, x=WIDTH//2, y=HEIGHT*4//5 - 50)
-boss_body_sprite.opacity = 0
-
-
-health_sprite_normal = pyglet.sprite.Sprite(
-    health_3_image,
-    x=boundary_sprite.x - boundary_sprite.width//2 - health_3_image.width//2 - 10,
-    y=boundary_sprite.y
-)
-health_sprite_jump   = pyglet.sprite.Sprite(
-    health_3_jump_image,
-    x=health_sprite_normal.x, y=health_sprite_normal.y
-)
-health_sprite_shield = pyglet.sprite.Sprite(
-    health_3_shield_image,
-    x=health_sprite_normal.x, y=health_sprite_normal.y
-)
-
-shield_sprite = pyglet.sprite.Sprite(shield_image, x=player_sprite.x + SHIELD_RADIUS, y=player_sprite.y)
-shield_sprite.anchor_x = shield_sprite.width  // 2
-shield_sprite.anchor_y = shield_sprite.height // 2
-
-# ----------------------------
-# Global Game State & Variables
-# ----------------------------
 game_state        = "menu"  # "menu", "play", "drift", "jump", "shield", "end"
 fading            = False
 alpha             = 255
@@ -186,15 +95,52 @@ shield_current_angle = 0.0
 shield_target_angle  = 0.0
 shield_mode_timer    = 0.0
 
-# ----------------------------
-# Key State Tracking
-# ----------------------------
-key_handler = key.KeyStateHandler()
-window.push_handlers(key_handler)
+# Sprites initialized later in init()
+title_image             = None
+player_image            = None
+player_jump_image       = None
+player_shield_image     = None
+boundary_image          = None
+boss_left_image         = None
+boss_center_image       = None
+boss_right_image        = None
+boss_body_image         = None
+health_3_image          = None
+health_2_image          = None
+health_1_image          = None
+health_3_jump_image     = None
+health_2_jump_image     = None
+health_1_jump_image     = None
+health_3_shield_image   = None
+health_2_shield_image   = None
+health_1_shield_image   = None
+red_probe_image         = None
+black_probe_image       = None
+oscilloscope_image      = None
+large_oscilloscope_image= None
+shield_image            = None
+pulse_thin_image        = None
+pulse_wide_image        = None
+capacitor_image         = None
 
-# ----------------------------
-# Class Definitions
-# ----------------------------
+global title_sprite, player_sprite, boundary_sprite, boss_sprite
+global boss_body_sprite, large_oscilloscope_sprite
+global health_sprite_normal, health_sprite_jump, health_sprite_shield
+global shield_sprite
+
+original_score_x          = None
+original_score_y          = None
+window                   = None
+exit_game               = False
+game_over               = False
+score                   = 0
+score_label             = None
+title_sprite             = None
+
+####################################################################################################
+# CLASSES                                                                                          #
+####################################################################################################
+
 class Probe:
     def __init__(self, x, y, direction, speed, delay):
         self.image = random.choice([red_probe_image, black_probe_image])
@@ -360,10 +306,12 @@ class Capacitor:
 
         return (pl < cr and pr > cl and pb < ct and pt > cb)
 
-# ----------------------------
-# Spawning Functions
-# ----------------------------
+####################################################################################################
+# FUNCTIONS                                                                                        #
+####################################################################################################
+
 def spawn_probe(dt):
+    global probes
     if game_state != "play":
         return
     speed      = random.uniform(*PROBE_PROJECTILE_SPEED_RANGE)
@@ -426,7 +374,7 @@ def update_config():
     pyglet.clock.unschedule(spawn_capacitor)
     pyglet.clock.schedule_interval(spawn_capacitor,1/CAPACITOR_SPAWN_RATE)
 
-# ----------------------------
+    # ----------------------------
 # Health Sprite Update
 # ----------------------------
 def update_health_sprite():
@@ -628,8 +576,6 @@ def update(dt):
             score_label.text = str(score)
             update_config()
 
-    # END screen is drawn elsewhere
-
 # ----------------------------
 # Flash & Invincibility
 # ----------------------------
@@ -672,6 +618,7 @@ def reset_game():
     global alpha, player_alpha, boundary_alpha, boss_alpha
     global dodge_timer, jump_mode_timer, shield_mode_timer
     global player_lives, invincible, score
+    global temp_score
 
     # restore HUD
     score_label.x = original_score_x
@@ -688,6 +635,7 @@ def reset_game():
     player_alpha = boundary_alpha = boss_alpha = 0
     player_lives = 3
     update_health_sprite()
+    temp_score = score
     score = 0
     score_label.text = str(score)
     invincible = False
@@ -697,14 +645,15 @@ def reset_game():
     dodge_timer = jump_mode_timer = shield_mode_timer = 0.0
     update_config()
 
-# ----------------------------
-# Event Handlers
-# ----------------------------
-@window.event
+####################################################################################################
+# EVENT HANDLERS                                                                                   #
+####################################################################################################
+
 def on_mouse_press(x, y, button, modifiers):
     global fading, player_target_x, player_target_y, jump_charging, player_vy, shield_target_angle
+    global exit_game
     if game_state == "end":
-        reset_game()
+        exit_game = True
         return
     if game_state == "menu":
         if (abs(x - title_sprite.x) < title_sprite.width/2 and
@@ -716,26 +665,24 @@ def on_mouse_press(x, y, button, modifiers):
         bb = boundary_sprite.y - boundary_sprite.height/2 + 25 + player_sprite.height/2
         tb = boundary_sprite.y + boundary_sprite.height/2 - 25 - player_sprite.height/2
         player_target_x = max(min(x, rb), lb)
-        player_target_y = max(min(y, tb), bb)
+        player_target_y = max(min(HEIGHT - y, tb), bb)
     elif game_state == "jump":
         ground = boundary_sprite.y - boundary_sprite.height/2 + 25 + player_sprite.height/2
         if abs(player_sprite.y - ground) < 1e-3:
             jump_charging = True
             player_vy = JUMP_INITIAL_VELOCITY
     elif game_state == "shield":
-        dx, dy = x - player_sprite.x, y - player_sprite.y
+        dx, dy = x - player_sprite.x, HEIGHT - y - player_sprite.y
         if abs(dx) >= abs(dy):
             shield_target_angle = 0 if dx>0 else 180
         else:
             shield_target_angle = 90 if dy>0 else 270
 
-@window.event
 def on_mouse_release(x, y, button, modifiers):
     global jump_charging
     if game_state == "jump":
         jump_charging = False
 
-@window.event
 def on_draw():
     window.clear()
     if game_state == "end":
@@ -775,10 +722,189 @@ def on_draw():
     oscilloscope_sprite.draw()
     score_label.draw()
 
-# ----------------------------
-# Initialization & Run
-# ----------------------------
-update_config()
-pyglet.clock.schedule_interval(update,         1/30.0)
+####################################################################################################
+# INITIALIZATION                                                                                   #
+####################################################################################################
 
-pyglet.app.run()
+def init(_=None):
+    global exit_game, game_over, window
+    global score_label, oscilloscope_sprite, title_sprite, player_sprite, boundary_sprite, boss_sprite, boss_body_sprite, large_oscilloscope_sprite
+    global health_sprite_jump, health_sprite_normal, health_sprite_shield, boss_left_image, boss_right_image
+    global player_target_x, player_target_y, boss_center_image, red_probe_image, black_probe_image, shield_sprite
+    global player_jump_image, player_shield_image, health_2_image, health_1_image, health_2_jump_image, health_2_shield_image, health_1_shield_image
+    global WIDTH, HEIGHT
+    global title_image, player_image, player_shield_image, boundary_image, boss_left_image, boss_center_image, boss_right_image, boss_body_image, health_3_image, health_2_image, health_1_image, health_3_jump_image, health_2_jump_image, health_1_jump_image, health_3_shield_image, health_2_shield_image, health_1_shield_image, red_probe_image, black_probe_image, oscilloscope_image, large_oscilloscope_image, shield_image, pulse_thin_image, pulse_wide_image, capacitor_image         
+
+    exit_game = False
+    game_over = False
+
+    window = pyglet.window.Window(fullscreen=True)
+    WIDTH, HEIGHT = window.width, window.height
+    window.set_caption("Undertable")
+
+    # Load font
+    pyglet.font.add_file("graphics/PressStart2P.ttf")
+
+    # Score & HUD
+
+    score = 0
+    score_label = pyglet.text.Label(
+        text="0",
+        font_name="Press Start 2P",
+        font_size=50,
+        x=965, y=HEIGHT - 230,
+        anchor_x="center", anchor_y="center",
+        color=(255, 255, 255, 255)
+    )
+    original_score_x = score_label.x
+    original_score_y = score_label.y
+
+    # Load Images
+
+    title_image             = pyglet.image.load("graphics/undertable_title.png")
+    player_image            = pyglet.image.load("graphics/player.png")
+    player_jump_image       = pyglet.image.load("graphics/player_jump.png")
+    player_shield_image     = pyglet.image.load("graphics/player_shield.png")
+    boundary_image          = pyglet.image.load("graphics/boundary.png")
+    boss_left_image         = pyglet.image.load("graphics/boss_left.png")
+    boss_center_image       = pyglet.image.load("graphics/boss_center.png")
+    boss_right_image        = pyglet.image.load("graphics/boss_right.png")
+    boss_body_image         = pyglet.image.load("graphics/boss_body.png")
+    health_3_image          = pyglet.image.load("graphics/lives_3.png")
+    health_2_image          = pyglet.image.load("graphics/lives_2.png")
+    health_1_image          = pyglet.image.load("graphics/lives_1.png")
+    health_3_jump_image     = pyglet.image.load("graphics/lives_3_jump.png")
+    health_2_jump_image     = pyglet.image.load("graphics/lives_2_jump.png")
+    health_1_jump_image     = pyglet.image.load("graphics/lives_1_jump.png")
+    health_3_shield_image   = pyglet.image.load("graphics/lives_shield_3.png")
+    health_2_shield_image   = pyglet.image.load("graphics/lives_shield_2.png")
+    health_1_shield_image   = pyglet.image.load("graphics/lives_shield_1.png")
+    red_probe_image         = pyglet.image.load("graphics/red_probe.png")
+    black_probe_image       = pyglet.image.load("graphics/black_probe.png")
+    oscilloscope_image      = pyglet.image.load("graphics/oscilloscope.png")
+    large_oscilloscope_image= pyglet.image.load("graphics/large_oscilloscope.png")
+    shield_image            = pyglet.image.load("graphics/shield.png")
+    pulse_thin_image        = pyglet.image.load("graphics/pulse_thin.png")
+    pulse_wide_image        = pyglet.image.load("graphics/pulse_wide.png")
+    capacitor_image         = pyglet.image.load("graphics/capacitor.png")
+
+    # Set Anchor Points
+
+    for img in [
+        title_image, player_image, player_jump_image, player_shield_image, boundary_image,
+        boss_left_image, boss_center_image, boss_right_image, boss_body_image,
+        health_3_image, health_2_image, health_1_image,
+        health_3_jump_image, health_2_jump_image, health_1_jump_image,
+        health_3_shield_image, health_2_shield_image, health_1_shield_image,
+        red_probe_image, black_probe_image,
+        oscilloscope_image, large_oscilloscope_image, shield_image,
+        pulse_thin_image, pulse_wide_image,
+        capacitor_image
+    ]:
+        img.anchor_x = img.width  // 2
+        img.anchor_y = img.height // 2
+
+    # Create Sprites
+
+    title_sprite               = pyglet.sprite.Sprite(title_image, x=WIDTH//2, y=HEIGHT//2)
+    player_sprite              = pyglet.sprite.Sprite(player_image, x=WIDTH//2, y=HEIGHT//3)
+    player_target_x            = player_sprite.x
+    player_target_y            = player_sprite.y
+    boundary_sprite            = pyglet.sprite.Sprite(boundary_image, x=WIDTH//2, y=HEIGHT//3)
+    boss_sprite                = pyglet.sprite.Sprite(boss_center_image, x=WIDTH//2, y=HEIGHT - boss_center_image.height//2)
+    oscilloscope_sprite        = pyglet.sprite.Sprite(oscilloscope_image, x=WIDTH*2//3 + 75, y=HEIGHT*4//5 - 25)
+    large_oscilloscope_sprite  = pyglet.sprite.Sprite(large_oscilloscope_image, x=WIDTH//2, y=HEIGHT//2)
+    boss_body_sprite  = pyglet.sprite.Sprite(boss_body_image, x=WIDTH//2, y=HEIGHT*4//5 - 50)
+    boss_body_sprite.opacity = 0
+
+    health_sprite_normal = pyglet.sprite.Sprite(
+        health_3_image,
+        x=boundary_sprite.x - boundary_sprite.width//2 - health_3_image.width//2 - 10,
+        y=boundary_sprite.y
+    )
+    health_sprite_jump   = pyglet.sprite.Sprite(
+        health_3_jump_image,
+        x=health_sprite_normal.x, y=health_sprite_normal.y
+    )
+    health_sprite_shield = pyglet.sprite.Sprite(
+        health_3_shield_image,
+        x=health_sprite_normal.x, y=health_sprite_normal.y
+    )
+
+    shield_sprite = pyglet.sprite.Sprite(shield_image, x=player_sprite.x + SHIELD_RADIUS, y=player_sprite.y)
+    shield_sprite.anchor_x = shield_sprite.width  // 2
+    shield_sprite.anchor_y = shield_sprite.height // 2
+
+    window.push_handlers(
+        on_draw,
+        on_mouse_press,
+        on_mouse_release,
+        key.KeyStateHandler()
+    )
+
+    update_config()
+    pyglet.clock.schedule_interval(update, 1/30.0)
+
+####################################################################################################
+# LOOP                                                                                             #
+####################################################################################################
+
+def loop(centroids: DetectedCentroids, dt: float) -> Loop_Result_t:
+    global exit_game
+
+    if not mouse_debug:
+        if centroids and centroids.fingers:
+            centroid = centroids.fingers[0]
+            on_mouse_press(centroid.xpos, centroid.ypos, mouse.LEFT, 0)
+
+    pyglet.clock.tick(poll=True)
+    window.dispatch_events()
+    window.dispatch_event('on_draw')
+    window.flip()
+
+    if exit_game or window.has_exit:
+        return Loop_Result_t.EXIT
+    else:
+        return Loop_Result_t.CONTINUE
+
+
+####################################################################################################
+# DEINITIALIZATION                                                                                 #
+####################################################################################################
+
+def deinit() -> int:
+    global window
+    pyglet.clock.unschedule(update)
+
+    end_game()
+
+    reset_game
+
+    if window is not None:
+        window.close()
+        window = None
+    return temp_score
+
+####################################################################################################
+# MAIN                                                                                             #
+####################################################################################################
+
+def main() -> None:
+    cv.cv_init(detect_fingers=True, detect_cds=True)
+    init()
+
+    loop_res: Loop_Result_t = Loop_Result_t.CONTINUE
+    prev_time = time.time()
+
+    while loop_res == Loop_Result_t.CONTINUE:
+        centroids = cv.cv_loop()
+
+        dt = time.time() - prev_time
+        prev_time = time.time()
+
+        loop_res = loop(centroids, dt)
+
+    deinit()
+
+if __name__ == "__main__":
+    main()

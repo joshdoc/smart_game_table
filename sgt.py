@@ -28,9 +28,9 @@
 # IMPORTS                                                                                          #
 ####################################################################################################
 
+import os
 import time
 from typing import Optional
-import os
 
 import cv
 from sgt_types import Game, Game_t, Loop_Result_t
@@ -41,7 +41,7 @@ from sgt_types import Game, Game_t, Loop_Result_t
 
 
 MENU = Game(name="menu", game_type=Game_t.MENU)
-UNDERTABLE = Game(name="undertable_touch", game_type=Game_t.SCORED)
+UNDERTABLE = Game(name="undertable", game_type=Game_t.SCORED)
 HOCKEY = Game(name="hockey", game_type=Game_t.UNSCORED)
 DOTS = Game(name="dots", game_type=Game_t.SCORED)
 MOUSE = Game(name="mouse", game_type=Game_t.UNSCORED)
@@ -62,7 +62,9 @@ def _game_return_type_error(game: Game, ret_type: type | None) -> None:
         correct_type = str
     if game.game_type == Game_t.SCORED:
         correct_type = int
-    raise ValueError("Module '{}' must return {}, not {}".format(game.name, correct_type, ret_type))
+    raise ValueError(
+        "Module '{}' must return {}, not {}".format(game.name, correct_type, ret_type)
+    )
 
 
 ####################################################################################################
@@ -78,10 +80,9 @@ def main() -> None:
     game_result: Optional[int | str] = None
     invalid_game_result: bool = False
 
-    if (cur_game.name == "debug"):
-        os.system('cv.py')
+    if cur_game.name == "debug":
+        os.system("cv.py")
         cur_game = MENU
-
 
     cv.cv_init(detect_fingers=True, detect_cds=True)
     cur_game.init((GAMES, None, None))
@@ -120,7 +121,9 @@ def main() -> None:
             if invalid_game_result:
                 _game_return_type_error(cur_game, type(game_result))
 
-            cur_game.init((GAMES, prev_game_name, prev_game_score) if cur_game == MENU else None)
+            cur_game.init(
+                (GAMES, prev_game_name, prev_game_score) if cur_game == MENU else None
+            )
 
 
 if __name__ == "__main__":
