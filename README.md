@@ -16,21 +16,25 @@ Plots all of our data from the user test data.
 ### Games
 - `sgt.py` \
 Runs the full suite of games, starting with the game selection menu.
-- `hockey.py` \
-Makes the table into an air hockey emulator detecting our tangible air hockey paddles.
-- `undertable.py` \
-Plays a game similar to an Undertale boss fight on the table.
 - `dots.py` \
 Runs the user testing game without any of the data collection.
+- `hockey.py` \
+Makes the table into an air hockey emulator detecting our tangible air hockey paddles.
 - `macrodata.py` \
 Plays a game similar to the macrodata refinement job in Severance.
-- `mouse.py` \
-Makes the table into a functional touchscreen.
 - `menu.py` \
 Runs the menu for switching between games.
+- `mouse.py` \
+Makes the table into a functional touchscreen.
+- `undertable.py` \
+Plays a game similar to an Undertale boss fight on the table.
 ### Backend
 - `cv.py` \
 Run on its own to see detected centroids.  This program is used by the games and
 user tests to detect finger presses and tangible object locations.
 - `sgt_types.py` \
 Contains all data types shared between multiple files.
+- `debug/` \
+Provides a script to determine the proper camera orientation and table outline thresholds.
+- `graphics/` \
+Contains all of the required graphics for the games.
