@@ -44,10 +44,6 @@ GAME_DURATION = 30
 ####################################################################################################
 
 
-targets = []  # List of targets
-score = 0
-
-
 ####################################################################################################
 # LOCAL FUNCTIONS                                                                                  #
 ####################################################################################################
@@ -64,7 +60,7 @@ def _distance(x1, y1, x2, y2):
 
 
 def init(_=None):
-    global clock, screen, font
+    global clock, screen, font, last_spawn_time, start_time, score, targets
     pygame.init()
 
     clock = pygame.time.Clock()
@@ -74,13 +70,14 @@ def init(_=None):
 
     font = pygame.font.SysFont("Arial", 24)
 
-
-last_spawn_time = time.time()
-start_time = time.time()
+    targets = []  # List of targets
+    score = 0
+    last_spawn_time = time.time()
+    start_time = time.time()
 
 
 def loop(centroids: DetectedCentroids, _=None) -> Loop_Result_t:
-    global score, last_spawn_time
+    global score, last_spawn_time, targets
     retVal = Loop_Result_t.CONTINUE
 
     screen.fill(WHITE)
@@ -99,9 +96,13 @@ def loop(centroids: DetectedCentroids, _=None) -> Loop_Result_t:
         target_x, target_y = target
 
         for centroid in centroids.fingers:
-            pygame.draw.circle(screen, BLUE, (centroid.xpos, centroid.ypos), CENTROID_RADIUS)
+            pygame.draw.circle(
+                screen, BLUE, (centroid.xpos, centroid.ypos), CENTROID_RADIUS
+            )
 
-            distance_from_center = _distance(centroid.xpos, centroid.ypos, target_x, target_y)
+            distance_from_center = _distance(
+                centroid.xpos, centroid.ypos, target_x, target_y
+            )
 
             # Check if click is within the target
             if distance_from_center <= TARGET_RADIUS + CENTROID_RADIUS:
@@ -110,7 +111,9 @@ def loop(centroids: DetectedCentroids, _=None) -> Loop_Result_t:
                     targets.remove(target)
 
     # Spawn new targets at the defined spawn rate
-    if len(targets) < MAX_TARGETS and (time.time() - last_spawn_time >= TARGET_SPAWN_RATE):
+    if len(targets) < MAX_TARGETS and (
+        time.time() - last_spawn_time >= TARGET_SPAWN_RATE
+    ):
         last_spawn_time = time.time()
         created = False
 
@@ -122,7 +125,10 @@ def loop(centroids: DetectedCentroids, _=None) -> Loop_Result_t:
             )
 
             for target in targets:
-                if _distance(target_pos[0], target_pos[1], target[0], target[1]) < TARGET_SPACING:
+                if (
+                    _distance(target_pos[0], target_pos[1], target[0], target[1])
+                    < TARGET_SPACING
+                ):
                     created = False
                     break
 
