@@ -36,14 +36,17 @@ Runs the full suite of games, starting with the game selection menu.
 #### Individual Parts:
 -  `dots.py` \
 Runs the user testing game without any of the data collection.
+
 ![dots!](https://github.com/joshdoc/smart_game_table/blob/master/Media/gifs/dots.gif?raw=true)
  
 
 -  `hockey.py` \
 Makes the table into an air hockey emulator detecting our tangible air hockey paddles.
+
 ![hockey!](https://github.com/joshdoc/smart_game_table/blob/master/Media/gifs/hockey.gif?raw=true)
 -  `macrodata.py` \
 Plays a game similar to the macrodata refinement job in Severance.
+
 ![mysterious and important gif](https://github.com/joshdoc/smart_game_table/blob/master/Media/gifs/mdr.gif?raw=true)
 
 -  `mouse.py` \
@@ -62,6 +65,7 @@ Runs the menu for switching between games.
 -  `cv.py` \
 Run on its own to see detected centroids. This program is used by the games and
 user tests to detect finger presses and tangible object locations.
+
 ![enter image description here](https://github.com/joshdoc/smart_game_table/blob/master/Media/gifs/cv.gif?raw=true)
 
 -  `sgt_types.py` \
