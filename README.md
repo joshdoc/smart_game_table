@@ -48,6 +48,7 @@ Plays a game similar to the macrodata refinement job in Severance.
 
 -  `mouse.py` \
 Makes the table into a functional touchscreen.
+
 ![mouse emulation!](https://github.com/joshdoc/smart_game_table/blob/master/Media/gifs/mousemode.gif?raw=true)
 -  `undertable.py` \
 Plays a game similar to an Undertale boss fight on the table.
