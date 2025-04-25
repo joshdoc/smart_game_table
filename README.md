@@ -51,6 +51,7 @@ Makes the table into a functional touchscreen.
 ![mouse emulation!](https://github.com/joshdoc/smart_game_table/blob/master/Media/gifs/mousemode.gif?raw=true)
 -  `undertable.py` \
 Plays a game similar to an Undertale boss fight on the table.
+
 ![enter image description here](https://github.com/joshdoc/smart_game_table/blob/master/Media/gifs/undertable.gif?raw=true)
 -  `menu.py` \
 Runs the menu for switching between games.
